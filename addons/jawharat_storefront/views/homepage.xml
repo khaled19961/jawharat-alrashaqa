@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="jawharat_homepage" inherit_id="website.homepage" name="Jawharat Al Rashaqa homepage">
+        <xpath expr="//div[@id='wrap']" position="replace">
+            <div id="wrap" class="oe_structure jw-home">
+                <t t-set="fixed_banners" t-value="request.env['jawharat.banner'].sudo().search([('active', '=', True), ('placement', '=', 'fixed')], order='sequence, id', limit=2)"/>
+                <t t-set="moving_banners" t-value="request.env['jawharat.banner'].sudo().search([('active', '=', True), ('placement', '=', 'moving')], order='sequence, id', limit=10)"/>
+                <t t-set="categories" t-value="request.env['product.public.category'].search([('parent_id', '=', False), ('website_published', '=', True)], order='sequence, name', limit=6)"/>
+                <t t-set="featured_products" t-value="request.env['product.template'].search([('sale_ok', '=', True), ('website_published', '=', True)], order='website_sequence asc, name asc', limit=8)"/>
+
+                <section class="hero-storefront" aria-label="العروض الرئيسية">
+                    <div class="container">
+                        <div class="home-hero-layout">
+                            <div t-if="fixed_banners" class="home-hero-fixed">
+                                <a t-foreach="fixed_banners" t-as="banner"
+                                   t-att-href="banner.link_url or '/shop'"
+                                   class="home-hero-fixed-banner">
+                                    <img t-att-src="'/web/image/jawharat.banner/%s/image_1920' % banner.id"
+                                         t-att-alt="banner.alt_text or banner.name"
+                                         loading="eager" decoding="async"/>
+                                </a>
+                            </div>
+                            <div class="home-hero-slider" aria-label="العروض المتحركة">
+                                <div class="home-hero-slider-track">
+                                    <t t-if="moving_banners">
+                                        <a t-foreach="moving_banners + moving_banners" t-as="banner"
+                                           t-att-href="banner.link_url or '/shop'"
+                                           class="home-hero-slide">
+                                            <img t-att-src="'/web/image/jawharat.banner/%s/image_1920' % banner.id"
+                                                 t-att-alt="banner.alt_text or banner.name"
+                                                 loading="lazy" decoding="async"/>
+                                        </a>
+                                    </t>
+                                    <t t-else="">
+                                        <a t-foreach="['https://d-nutrition-care.akhtyarathamnasbat.workers.dev/banners/moving-01.png', 'https://d-nutrition-care.akhtyarathamnasbat.workers.dev/banners/moving-02.png', 'https://d-nutrition-care.akhtyarathamnasbat.workers.dev/banners/moving-03.png'] * 2" t-as="image_url"
+                                           href="/shop" class="home-hero-slide">
+                                            <img t-att-src="image_url" alt="عرض منتجات الصحة والرشاقة" loading="lazy" decoding="async"/>
+                                        </a>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="home-category-icons">
+                    <div class="container">
+                        <div class="home-category-rail">
+                            <a t-foreach="categories" t-as="category" t-att-href="category.website_url" class="home-category-item">
+                                <span class="home-category-icon"><span class="jw-category-letter"><t t-out="category.name[:1]"/></span></span>
+                                <strong><t t-out="category.name"/></strong>
+                            </a>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="home-store-section" t-if="featured_products">
+                    <div class="container">
+                        <div class="home-store-heading">
+                            <h2>عروض ومنتجات مميزة</h2>
+                            <a href="/shop">عرض الكل ←</a>
+                        </div>
+                        <div class="home-product-rail">
+                            <article t-foreach="featured_products" t-as="product" class="home-product-card">
+                                <div class="home-product-media">
+                                    <a t-att-href="product.website_url" class="home-product-image">
+                                        <img t-att-src="'/web/image/product.template/%s/image_512' % product.id"
+                                             t-att-alt="product.name" loading="lazy" decoding="async"/>
+                                    </a>
+                                </div>
+                                <div class="home-product-body">
+                                    <a t-att-href="product.website_url" class="home-product-name"><t t-out="product.name"/></a>
+                                    <div class="home-product-price">
+                                        <strong><span t-field="product.list_price" t-options="{'widget': 'monetary', 'display_currency': product.currency_id}"/></strong>
+                                    </div>
+                                    <a t-att-href="product.website_url" class="jw-product-action">عرض المنتج</a>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="home-promo home-promo-purple">
+                    <div class="container home-promo-inner">
+                        <div><span>عروض المتجر</span><h2>اكتشف منتجاتك المفضلة</h2><p>تصفح منتجات الصحة والرشاقة والمكملات الرياضية من مكان واحد.</p><a href="/shop">تسوق الآن</a></div>
+                        <div class="home-promo-orbs"><i/><i/><i/></div>
+                    </div>
+                </section>
+
+                <section class="home-store-section" t-foreach="categories" t-as="category">
+                    <t t-set="category_products" t-value="request.env['product.template'].search([('sale_ok', '=', True), ('website_published', '=', True), ('public_categ_ids', 'child_of', category.id)], order='website_sequence asc, name asc', limit=8)"/>
+                    <div class="container" t-if="category_products">
+                        <div class="home-store-heading">
+                            <h2><t t-out="category.name"/></h2>
+                            <a t-att-href="category.website_url">عرض الكل ←</a>
+                        </div>
+                        <div class="home-product-rail">
+                            <article t-foreach="category_products" t-as="product" class="home-product-card">
+                                <div class="home-product-media">
+                                    <a t-att-href="product.website_url" class="home-product-image">
+                                        <img t-att-src="'/web/image/product.template/%s/image_512' % product.id"
+                                             t-att-alt="product.name" loading="lazy" decoding="async"/>
+                                    </a>
+                                </div>
+                                <div class="home-product-body">
+                                    <a t-att-href="product.website_url" class="home-product-name"><t t-out="product.name"/></a>
+                                    <div class="home-product-price">
+                                        <strong><span t-field="product.list_price" t-options="{'widget': 'monetary', 'display_currency': product.currency_id}"/></strong>
+                                    </div>
+                                    <a t-att-href="product.website_url" class="jw-product-action">عرض المنتج</a>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="home-discount-section">
+                    <div class="container">
+                        <div class="home-discount-heading"><h2>تصفح المتجر حسب احتياجك</h2></div>
+                        <div class="home-discount-rail">
+                            <a href="/shop?search=protein" class="home-discount-card"><strong>البروتين</strong><span>منتجات البروتين الرياضي</span><small>تصفح الآن ←</small></a>
+                            <a href="/shop?search=creatine" class="home-discount-card"><strong>الكرياتين</strong><span>مكملات دعم الأداء الرياضي</span><small>تصفح الآن ←</small></a>
+                            <a href="/shop?search=vitamin" class="home-discount-card"><strong>الفيتامينات</strong><span>منتجات الصحة والعافية</span><small>تصفح الآن ←</small></a>
+                            <a href="/shop" class="home-discount-card"><strong>كل المنتجات</strong><span>استكشف الكتالوج</span><small>تصفح الآن ←</small></a>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </xpath>
+    </template>
+</odoo>

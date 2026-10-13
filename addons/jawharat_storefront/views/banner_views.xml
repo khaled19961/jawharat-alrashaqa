@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_jawharat_banner_list" model="ir.ui.view">
+        <field name="name">jawharat.banner.list</field>
+        <field name="model">jawharat.banner</field>
+        <field name="arch" type="xml">
+            <list string="Store Banners" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="placement"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_jawharat_banner_form" model="ir.ui.view">
+        <field name="name">jawharat.banner.form</field>
+        <field name="model">jawharat.banner</field>
+        <field name="arch" type="xml">
+            <form string="Store Banner">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Banner name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="placement"/>
+                            <field name="sequence"/>
+                            <field name="active"/>
+                            <field name="link_url" placeholder="/shop or https://example.com"/>
+                            <field name="alt_text"/>
+                        </group>
+                        <group>
+                            <field name="image_1920" widget="image" class="oe_avatar" options="{'preview_image': 'image_1920'}"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_jawharat_banners" model="ir.actions.act_window">
+        <field name="name">Store Banners</field>
+        <field name="res_model">jawharat.banner</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_jawharat_banners_root"
+              name="Store Banners"
+              action="action_jawharat_banners"
+              sequence="85"
+              groups="base.group_system"/>
+</odoo>

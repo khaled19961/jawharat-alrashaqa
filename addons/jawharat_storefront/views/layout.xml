@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="jawharat_header" inherit_id="website.layout" name="Jawharat storefront header">
+        <xpath expr="//header[@id='top']" position="replace">
+            <header id="top" data-name="Header" class="main-header">
+                <div class="top-strip">
+                    <div class="container top-strip-inner">
+                        <span>عروض مميزة على منتجات الصحة والرشاقة</span>
+                        <span>تسوق آمن ومنتجات مختارة</span>
+                        <a href="/contactus">تواصل معنا</a>
+                    </div>
+                </div>
+                <div class="quick-header-links">
+                    <div class="container quick-header-links-inner">
+                        <a href="/shop">تسوق المنتجات</a>
+                        <a href="/shop?search=protein">البروتين</a>
+                        <a href="/shop?search=creatine">الكرياتين</a>
+                        <a href="/shop">العروض والمنتجات</a>
+                        <a href="/contactus">خدمة العملاء</a>
+                    </div>
+                </div>
+                <div class="container header-inner">
+                    <a href="/" class="brand" aria-label="جوهرة الرشاقة">
+                        <img t-if="website.logo" t-att-src="'/web/image/website/%s/logo' % website.id" alt="جوهرة الرشاقة" class="brand-logo"/>
+                        <span t-if="not website.logo" class="brand-mark">ج</span>
+                        <span><strong>جوهرة الرشاقة</strong><small>HEALTH &amp; FITNESS</small></span>
+                    </a>
+                    <nav class="desktop-nav" aria-label="التنقل الرئيسي">
+                        <a href="/" class="active">الرئيسية</a>
+                        <a href="/shop">المتجر</a>
+                        <a href="/shop?search=protein">المكملات الرياضية</a>
+                        <a href="/contactus">اتصل بنا</a>
+                    </nav>
+                    <div class="header-actions">
+                        <a href="/my/home" class="login-link">حسابي</a>
+                        <a href="/shop/cart" class="primary-btn">السلة</a>
+                    </div>
+                </div>
+            </header>
+        </xpath>
+    </template>
+
+    <template id="jawharat_footer" inherit_id="website.layout" name="Jawharat storefront footer">
+        <xpath expr="//footer[@id='bottom']" position="replace">
+            <footer id="bottom" class="footer" data-name="Footer">
+                <div class="container footer-grid">
+                    <div>
+                        <a href="/" class="brand"><span class="brand-mark">ج</span><span><strong>جوهرة الرشاقة</strong><small>HEALTH &amp; FITNESS</small></span></a>
+                        <p>وجهتك لمنتجات الصحة والرشاقة والمكملات الرياضية.</p>
+                    </div>
+                    <div><h4>روابط المتجر</h4><a href="/shop">جميع المنتجات</a><a href="/shop?search=protein">البروتين</a><a href="/shop?search=creatine">الكرياتين</a></div>
+                    <div><h4>خدمة العملاء</h4><a href="/contactus">اتصل بنا</a><a href="/shop">تصفح المنتجات</a><a href="/contactus">سياسات المتجر والاستفسارات</a></div>
+                </div>
+                <div class="container footer-bottom"><span>جوهرة الرشاقة</span><span>الأسعار والضرائب النهائية وفق إعدادات المتجر.</span></div>
+            </footer>
+        </xpath>
+    </template>
+</odoo>

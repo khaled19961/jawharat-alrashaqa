@@ -1,0 +1,88 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  background: #f5f7f3;
+  color: #1d2921;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input, textarea { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .58; }
+.login-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at top left,#ecf5d9 0,transparent 45%),#f5f7f3; }
+.login-card { width: min(100%, 430px); background: #fff; border: 1px solid #e1e8da; border-radius: 22px; padding: 30px; box-shadow: 0 16px 50px #17250d12; }
+.brand-mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; background: #8db52a; color: #fff; font-weight: 900; font-size: 24px; }
+.eyebrow { margin: 18px 0 4px; font-size: 11px; letter-spacing: 1.7px; color: #799d2a; font-weight: 800; direction: ltr; text-align: right; }
+h1 { margin: 8px 0; font-size: clamp(22px,4vw,30px); }
+.muted, .security-note { color: #6b776b; font-size: 13px; line-height: 1.8; }
+.login-card label { display: block; margin: 20px 0 7px; font-weight: 700; font-size: 13px; }
+.login-card input { width: 100%; padding: 12px 13px; border: 1px solid #d6dfd0; border-radius: 10px; outline: none; }
+.login-card input:focus, textarea:focus { border-color: #8db52a; box-shadow: 0 0 0 3px #8db52a25; }
+.primary-button, .secondary-button { border: 0; border-radius: 9px; padding: 10px 15px; font-weight: 700; font-size: 13px; transition: background .15s ease; }
+.primary-button { background: #8db52a; color: #fff; }
+.primary-button:hover:not(:disabled) { background: #72951e; }
+.secondary-button { background: #eef2e8; color: #33432a; border: 1px solid #dfe7d8; }
+.secondary-button:hover:not(:disabled) { background: #e4ebdc; }
+.login-card .primary-button { width: 100%; margin-top: 14px; }
+.error { color: #a52e2e; font-size: 13px; line-height: 1.6; }
+.loading-shell { padding: 50px 20px; text-align: center; color: #63705e; }
+.app-shell { max-width: 1120px; width: calc(100% - 32px); margin: 22px auto; min-height: calc(100vh - 44px); display: flex; flex-direction: column; gap: 14px; }
+.topbar, .connection-panel, .safety-banner, .chat-panel { background: #fff; border: 1px solid #e1e8da; border-radius: 16px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 15px 18px; }
+.brand, .header-actions { display: flex; align-items: center; gap: 11px; }
+.brand strong { display: block; font-size: 15px; }
+.brand span { display: block; color: #738071; font-size: 11px; margin-top: 3px; }
+.header-actions { flex-wrap: wrap; justify-content: flex-end; }
+.connection-pill { border-radius: 30px; padding: 7px 10px; font-size: 11px; background: #f3eee3; color: #74643a; }
+.connection-pill.online { background: #eaf4dc; color: #466819; }
+.connection-panel { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.connection-panel strong { font-size: 13px; }
+.connection-panel p { margin: 4px 0 0; color: #6d7869; font-size: 12px; line-height: 1.6; }
+.connection-message { color: #536a2d !important; }
+.safety-banner { background: #fbfdf6; border-color: #dfeacb; padding: 12px 16px; display: flex; gap: 10px; align-items: flex-start; font-size: 12px; line-height: 1.7; }
+.safety-banner strong { color: #698a22; white-space: nowrap; }
+.chat-panel { flex: 1; min-height: 420px; overflow: hidden; display: flex; flex-direction: column; }
+.empty-chat { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 35px 22px 20px; }
+.empty-chat p { color: #697668; line-height: 1.9; font-size: 13px; max-width: 600px; }
+.empty-icon { width: 52px; height: 52px; border-radius: 17px; display: grid; place-items: center; background: #eef5dc; color: #759d22; font-size: 29px; }
+.suggestion { border: 1px solid #dce6d1; background: #f8fbf3; color: #405332; border-radius: 12px; padding: 12px 16px; margin-top: 12px; font-size: 13px; max-width: 100%; }
+.suggestion:hover { border-color: #9fbe60; background: #f1f7e5; }
+.messages { padding: 20px; display: flex; flex-direction: column; gap: 18px; }
+.message { max-width: 92%; border-radius: 14px; padding: 14px 16px; overflow-wrap: anywhere; }
+.user-message { align-self: flex-start; background: #f0f5e6; border: 1px solid #e0eacb; }
+.assistant-message { align-self: stretch; border: 1px solid #e8ede4; background: #fff; }
+.message-role { color: #71805f; font-size: 11px; font-weight: 800; margin-bottom: 8px; }
+.message-text { white-space: pre-wrap; line-height: 1.9; font-size: 13px; }
+.composer { border-top: 1px solid #e9eee5; background: #fbfcfa; padding: 14px; }
+.composer textarea { width: 100%; resize: vertical; min-height: 70px; max-height: 210px; border: 1px solid #dce5d7; border-radius: 12px; padding: 12px; outline: none; }
+.composer-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-top: 9px; }
+.composer-footer > span { color: #879083; font-size: 10px; }
+.composer-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+.tool-card { margin-top: 10px; border: 1px solid #dde4d6; border-radius: 10px; padding: 11px; background: #fbfcfa; font-size: 12px; }
+.approval-card { border: 1px solid #d8c995; background: #fffdf5; }
+.tool-card strong { color: #735d1d; }
+.tool-name { color: #5b6755; font-weight: 700; }
+.tool-card pre { direction: ltr; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 230px; overflow: auto; background: #f3f4ef; border-radius: 7px; padding: 8px; font-size: 11px; }
+.tool-actions { display: flex; gap: 8px; }
+.small { padding: 7px 11px; font-size: 11px; }
+.tool-progress { margin-top: 9px; color: #687663; background: #f3f5f1; padding: 8px; border-radius: 8px; font-size: 11px; }
+.page-footer { text-align: center; color: #818b7c; padding: 0 10px 7px; font-size: 10px; }
+@media (max-width: 620px) {
+  .app-shell { width: calc(100% - 16px); margin: 8px auto; min-height: calc(100vh - 16px); gap: 8px; }
+  .topbar { align-items: flex-start; padding: 12px; }
+  .brand strong { font-size: 13px; }
+  .brand span { font-size: 10px; }
+  .header-actions { gap: 6px; }
+  .connection-pill { display: none; }
+  .connection-panel { align-items: flex-start; padding: 12px; }
+  .safety-banner { font-size: 11px; }
+  .messages { padding: 12px; }
+  .message { max-width: 100%; }
+  .composer { padding: 10px; }
+  .composer-footer { align-items: flex-start; }
+  .composer-actions { width: 100%; }
+  .composer-actions button { flex: 1; }
+  .login-card { padding: 23px; }
+}
