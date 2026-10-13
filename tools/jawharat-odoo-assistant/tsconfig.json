@@ -1,0 +1,10 @@
+{
+  "extends": "agents/tsconfig",
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["src", "env.d.ts", "vite.config.ts"]
+}
