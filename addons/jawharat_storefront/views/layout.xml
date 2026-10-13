@@ -49,7 +49,7 @@
                         <p>وجهتك لمنتجات الصحة والرشاقة والمكملات الرياضية.</p>
                     </div>
                     <div><h4>روابط المتجر</h4><a href="/shop">جميع المنتجات</a><a href="/shop?search=protein">البروتين</a><a href="/shop?search=creatine">الكرياتين</a></div>
-                    <div><h4>خدمة العملاء</h4><a href="/contactus">اتصل بنا</a><a href="/terms">الشروط والأحكام</a><a href="/privacy">سياسة الخصوصية</a></div>
+                    <div><h4>خدمة العملاء</h4><a href="/contactus">اتصل بنا</a><a href="/shop">تصفح المنتجات</a><a href="/contactus">سياسات المتجر والاستفسارات</a></div>
                 </div>
                 <div class="container footer-bottom"><span>جوهرة الرشاقة</span><span>الأسعار والضرائب النهائية وفق إعدادات المتجر.</span></div>
             </footer>
