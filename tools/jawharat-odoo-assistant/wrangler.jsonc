@@ -1,8 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "jawharat-odoo-assistant",
+  "name": "jawharat-alrashaqa",
   "main": "src/server.ts",
-  "compatibility_date": "2026-10-14",
+  "compatibility_date": "2026-10-13",
   "compatibility_flags": ["nodejs_compat"],
   "ai": { "binding": "AI", "remote": true },
   "assets": {
