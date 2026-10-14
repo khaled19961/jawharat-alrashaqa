@@ -6,6 +6,24 @@ import { createWorkersAI } from "workers-ai-provider";
 const SENSITIVE_TOOL_NAME = /account|invoice|vendor.?bill|customer.?invoice|stock|inventory|purchase|sale.?order|point.?of.?sale|(^|[_:\s-])pos([_:\s-]|$)|bank|tax|zakat|payment|refund|journal|payroll|valuation|reconcile/i;
 const READ_ONLY_TOOL_NAME = /search|read|list|retrieve|describe|find|lookup|count|get.?fields|get.?models|get.?context|schema|status/i;
 
+const SAFE_SEARCH_FIELDS: Record<string, readonly string[]> = {
+  "res.company": ["id", "name", "currency_id", "country_id", "partner_id"],
+  "res.currency": ["id", "name", "symbol", "active", "rounding"],
+  "res.country": ["id", "name", "code"],
+  "ir.module.module": ["id", "name", "shortdesc", "state", "latest_version"],
+  "account.account": ["id", "code", "name", "company_id", "deprecated"],
+  "account.journal": ["id", "name", "type", "company_id"],
+  "account.tax": ["id", "name", "type_tax_use", "company_id", "active", "amount", "amount_type"],
+  "stock.warehouse": ["id", "name", "code", "partner_id", "company_id"],
+  "stock.location": ["id", "name", "complete_name", "usage", "location_id", "company_id"],
+  "product.product": ["id", "name", "categ_id", "company_id", "active", "product_tmpl_id"],
+  "product.template": ["id", "name", "categ_id", "company_id", "active", "list_price", "sale_ok", "purchase_ok", "detailed_type", "type"],
+  "product.category": ["id", "name", "parent_id"],
+  "website": ["id", "name", "domain", "company_id"],
+  "website.page": ["id", "name", "url", "is_published", "view_id", "website_id"],
+  "website.menu": ["id", "name", "url", "parent_id", "sequence", "website_id"]
+};
+
 const SYSTEM_PROMPT = [
   "أنت المساعد التقني الخاص بمتجر «جوهرة الرشاقة» داخل Odoo Online.",
   "",
@@ -66,6 +84,58 @@ const SYSTEM_PROMPT = [
   "- لا تغيّر الروابط أو الأكواد أو أسماء المتغيرات أو مسارات الملفات أو القيم التقنية؛ اعرضها كما هي كي لا تتعطل.",
   "- استخدم المسافات والأسطر الجديدة بدل علامات الترقيم، واكتب الإجابة مباشرة من دون زخرفة.",
 ].join("\n");
+
+function extractLatestUserText(messages: unknown): string {
+  if (!Array.isArray(messages)) return "";
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index] as { role?: unknown; parts?: unknown };
+    if (message?.role !== "user" || !Array.isArray(message.parts)) continue;
+    return message.parts
+      .filter((part: any) => part?.type === "text" && typeof part.text === "string")
+      .map((part: any) => part.text)
+      .join("\n")
+      .trim();
+  }
+  return "";
+}
+
+function chooseRequiredReadTool(userText: string, toolNames: string[]): string | undefined {
+  const asksForLiveOdooData =
+    /اعرض|أظهر|ابحث|استعلم|اقرأ|افحص|راجع|تحقق|كم عدد|البيانات الحالية|بيانات الشركة|التطبيقات المثبتة|المنتجات الموجودة|المنتجات في النظام|الحسابات الموجودة|دليل الحسابات|دفاتر اليومية|الضرائب الحالية|المستودعات|المخزون الحالي|داخل أودو|داخل النظام|قاعدة البيانات|سجلات النظام|الإعدادات الحالية|installed modules|database records|current records|search records|read from odoo/i.test(userText);
+  if (!asksForLiveOdooData) return undefined;
+
+  const find = (pattern: RegExp) => toolNames.find((name) => pattern.test(name));
+  if (/حقول النموذج|الحقول المتاحة|تعريف الحقول|fields of|field schema/i.test(userText)) {
+    return find(/get_fields/i) ?? find(/odoo_ai_tool_search|(^|[_-])search$/i);
+  }
+  if (/قائمة النماذج|النماذج المتاحة|اعرض النماذج|list models|available models/i.test(userText)) {
+    return find(/get_models/i) ?? find(/odoo_ai_tool_search|(^|[_-])search$/i);
+  }
+  if (/السياق الأولي|الشركة النشطة|المنطقة الزمنية|initial context|active company|timezone/i.test(userText)) {
+    return find(/mcp_retrieve_initial_context/i) ?? find(/odoo_ai_tool_search|(^|[_-])search$/i);
+  }
+  return find(/odoo_ai_tool_search|(^|[_-])search$/i);
+}
+
+function validateSafeSearchInput(input: unknown): { ok: true } | { ok: false; error: string } {
+  if (!input || typeof input !== "object") {
+    return { ok: false, error: "تم منع الاستعلام لأن معاملات البحث ليست كائنًا صالحًا." };
+  }
+  const value = input as { model_name?: unknown; fields?: unknown };
+  const model = typeof value.model_name === "string" ? value.model_name : "";
+  const allowedFields = SAFE_SEARCH_FIELDS[model];
+  if (!allowedFields) {
+    return { ok: false, error: "تم منع القراءة لهذا النموذج لحماية بيانات المعاملات والبيانات الحساسة. النموذج غير موجود في قائمة القراءة الآمنة." };
+  }
+  if (!Array.isArray(value.fields) || value.fields.some((field) => typeof field !== "string")) {
+    return { ok: false, error: "تم منع الاستعلام لأن قائمة الحقول غير صالحة." };
+  }
+  const disallowed = value.fields.filter((field) => !allowedFields.includes(field));
+  if (disallowed.length > 0) {
+    return { ok: false, error: "تم منع الاستعلام لأنه يطلب حقولًا خارج قائمة القراءة الآمنة لهذا النموذج: " + disallowed.join(", ") };
+  }
+  return { ok: true };
+}
 
 export class JawharatOdooAgent extends AIChatAgent<Env> {
   maxPersistedMessages = 40;
@@ -249,6 +319,69 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
       tax_fields: { pattern: /get_fields/i, input: { model_name: "account.tax" } },
       warehouse_fields: { pattern: /get_fields/i, input: { model_name: "stock.warehouse" } },
       module_fields: { pattern: /get_fields/i, input: { model_name: "ir.module.module" } },
+      company_record: {
+        pattern: /odoo_ai_tool_search|(^|[_-])search$/i,
+        input: {
+          model_name: "res.company",
+          domain: "[('id', '=', 1)]",
+          fields: ["id", "name", "currency_id", "country_id", "partner_id"],
+          limit: 1
+        }
+      },
+      installed_modules: {
+        pattern: /odoo_ai_tool_search|(^|[_-])search$/i,
+        input: {
+          model_name: "ir.module.module",
+          domain: "[('name', 'in', ['base', 'web', 'website', 'website_sale', 'account', 'stock'])]",
+          fields: ["id", "name", "shortdesc", "state", "latest_version"],
+          limit: 10
+        }
+      },
+      account_samples: {
+        pattern: /odoo_ai_tool_search|(^|[_-])search$/i,
+        input: {
+          model_name: "account.account",
+          domain: "[('company_id', '=', 1)]",
+          fields: ["id", "code", "name", "company_id", "deprecated"],
+          limit: 5
+        }
+      },
+      journal_samples: {
+        pattern: /odoo_ai_tool_search|(^|[_-])search$/i,
+        input: {
+          model_name: "account.journal",
+          domain: "[('company_id', '=', 1)]",
+          fields: ["id", "name", "type", "company_id"],
+          limit: 5
+        }
+      },
+      tax_samples: {
+        pattern: /odoo_ai_tool_search|(^|[_-])search$/i,
+        input: {
+          model_name: "account.tax",
+          domain: "[('company_id', '=', 1)]",
+          fields: ["id", "name", "type_tax_use", "company_id"],
+          limit: 5
+        }
+      },
+      warehouse_samples: {
+        pattern: /odoo_ai_tool_search|(^|[_-])search$/i,
+        input: {
+          model_name: "stock.warehouse",
+          domain: "[('company_id', '=', 1)]",
+          fields: ["id", "name", "code", "company_id"],
+          limit: 5
+        }
+      },
+      product_samples: {
+        pattern: /odoo_ai_tool_search|(^|[_-])search$/i,
+        input: {
+          model_name: "product.product",
+          domain: "[('id', '>', 0)]",
+          fields: ["id", "name", "categ_id", "company_id"],
+          limit: 3
+        }
+      },
     };
 
     const job = jobs[auditKey];
@@ -328,18 +461,39 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
     const websiteScopedTools: Record<string, any> = {};
 
     for (const [name, definition] of Object.entries(allTools)) {
-      // Clearly finance, tax, inventory, procurement, and POS tools are not available here.
+      // Filter explicitly named write and sensitive tools.
       if (SENSITIVE_TOOL_NAME.test(name)) continue;
+      // Aggregation is intentionally disabled in the chat agent; use explicit, limited searches for setup review.
+      if (/read.?group/i.test(name)) continue;
 
       const readOnlyByName =
         READ_ONLY_TOOL_NAME.test(name) &&
         !/create|update|write|delete|unlink|publish|archive|confirm|validate|post|execute|remove|move/i.test(name);
+
+      // The generic Odoo search action is constrained to setup metadata and website structure.
+      if (/odoo_ai_tool_search|(^|[_-])search$/i.test(name) && typeof (definition as any).execute === "function") {
+        const originalDefinition = definition as any;
+        websiteScopedTools[name] = {
+          ...originalDefinition,
+          execute: async (input: unknown, toolOptions: unknown) => {
+            const validation = validateSafeSearchInput(input);
+            if (!validation.ok) {
+              return { ok: false, source: "local read policy", blocked: true, error: validation.error };
+            }
+            return originalDefinition.execute(input, toolOptions);
+          }
+        };
+        continue;
+      }
 
       // Any non-read tool call must request approval in the chat UI.
       websiteScopedTools[name] = readOnlyByName
         ? definition
         : { ...definition, needsApproval: true };
     }
+
+    const lastUserText = extractLatestUserText(this.messages);
+    const requiredReadToolName = chooseRequiredReadTool(lastUserText, Object.keys(websiteScopedTools));
 
     const workersai = createWorkersAI({ binding: this.env.AI });
     const result = streamText({
@@ -353,6 +507,13 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
         reasoning: "before-last-message"
       }),
       tools: websiteScopedTools,
+      prepareStep: ({ stepNumber }) => {
+        if (stepNumber === 0 && requiredReadToolName) {
+          return { toolChoice: { type: "tool", toolName: requiredReadToolName } };
+        }
+        return { toolChoice: "auto" };
+      },
+      temperature: 0,
       stopWhen: stepCountIs(8),
       abortSignal: options?.abortSignal
     });
