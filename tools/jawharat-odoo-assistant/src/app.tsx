@@ -17,14 +17,14 @@ function removeAssistantPunctuation(text: string): string {
   };
 
   let cleaned = text
-    .replace(/```[\\s\\S]*?```|`[^`\\n]*`/gu, protect)
-    .replace(/https?:\\/\\/[^\\s<>"'`]+/gu, protect)
-    .replace(/\\b[A-Za-z][A-Za-z0-9]*(?:[_./:@+-][A-Za-z0-9]+)+\\b/gu, protect)
-    .replace(/\\p{N}+(?:[.,٫٬:/-]\\p{N}+)*/gu, protect)
-    .replace(/[\\p{P}|~<>=]+/gu, " ")
-    .replace(/[ \\t]+/g, " ")
-    .replace(/ *\\n */g, "\\n")
-    .replace(/\\n{3,}/g, "\\n\\n")
+    .replace(/```[\s\S]*?```|`[^`\n]*`/gu, protect)
+    .replace(/https?:\/\/[^\s<>"'`]+/gu, protect)
+    .replace(/\b[A-Za-z][A-Za-z0-9]*(?:[_./:@+-][A-Za-z0-9]+)+\b/gu, protect)
+    .replace(/\p{N}+(?:[.,٫٬:/-]\p{N}+)*/gu, protect)
+    .replace(/[\p{P}|~<>=]+/gu, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 
   protectedParts.forEach((value, index) => {
