@@ -126,6 +126,8 @@ function Chat({ onLogout }: { onLogout: () => void }) {
   });
   const [input, setInput] = useState("");
   const [connectionMessage, setConnectionMessage] = useState("");
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [copyErrorMessageId, setCopyErrorMessageId] = useState<string | null>(null);
   const agent = useAgent<JawharatOdooAgent>({
     agent: "JawharatOdooAgent",
     name: "main",
@@ -139,6 +141,38 @@ function Chat({ onLogout }: { onLogout: () => void }) {
   const servers = useMemo(() => Object.values(mcpState.servers), [mcpState]);
   const odooServer = servers.find((server) => /odoo/i.test(server.name + " " + server.server_url));
   const isOdooReady = odooServer?.state === "ready";
+
+  async function copyAssistantMessage(message: UIMessage) {
+    const textToCopy = message.parts
+      .map((part) => part.type === "text" ? part.text : "")
+      .filter((text) => text.trim().length > 0)
+      .join("\n\n");
+
+    if (!textToCopy) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(textToCopy);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = textToCopy;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand("copy");
+        textarea.remove();
+        if (!copied) throw new Error("Clipboard unavailable");
+      }
+
+      setCopiedMessageId(message.id);
+      setCopyErrorMessageId(null);
+    } catch {
+      setCopyErrorMessageId(message.id);
+      setCopiedMessageId(null);
+    }
+  }
 
   async function reconnect() {
     setConnectionMessage("جارٍ فحص الاتصال...");
@@ -210,7 +244,23 @@ function Chat({ onLogout }: { onLogout: () => void }) {
           <div className="messages">
             {messages.map((message) => (
               <article className={message.role === "user" ? "message user-message" : "message assistant-message"} key={message.id}>
-                <div className="message-role">{message.role === "user" ? "أنت" : "مساعد جوهرة الرشاقة"}</div>
+                <div className="message-heading">
+                  <div className="message-role">{message.role === "user" ? "أنت" : "مساعد جوهرة الرشاقة"}</div>
+                  {message.role === "assistant" && message.parts.some((part) => part.type === "text" && part.text.trim().length > 0) && (
+                    <button
+                      type="button"
+                      className="copy-message-button"
+                      onClick={() => void copyAssistantMessage(message)}
+                      aria-label="نسخ رسالة المساعد"
+                    >
+                      {copiedMessageId === message.id
+                        ? "تم النسخ ✓"
+                        : copyErrorMessageId === message.id
+                          ? "تعذر النسخ"
+                          : "نسخ الرسالة"}
+                    </button>
+                  )}
+                </div>
                 {message.parts.map((part, index) => {
                   if (part.type === "text") return <div className="message-text" key={message.id + "-" + index}>{part.text}</div>;
                   return <ToolPart key={message.id + "-" + index} part={part} approve={addToolApprovalResponse} />;
