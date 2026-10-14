@@ -115,10 +115,28 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
 
   @callable()
   async reconnectOdoo() {
+    const savedState = this.getMcpServers();
+    const savedServer =
+      savedState.servers["odoo"] ??
+      Object.values(savedState.servers).find((server) => /odoo/i.test(server.name + " " + server.server_url));
+
+    if (savedServer?.state === "ready") {
+      return {
+        ok: true,
+        state: "ready",
+        tools: savedState.tools.length,
+        message: "تم الاتصال بخادم Odoo MCP المحفوظ. لا يلزم إعادة إدخال بيانات الاتصال لهذا الاستدعاء.",
+      };
+    }
+
     const url = this.env.ODOO_MCP_URL?.trim();
     const token = this.env.ODOO_MCP_TOKEN?.trim();
     if (!url || !token) {
-      return { ok: false, message: "يلزم ضبط ODOO_MCP_URL و ODOO_MCP_TOKEN في إعدادات Worker." };
+      return {
+        ok: false,
+        state: savedServer?.state ?? "missing",
+        message: "لا يوجد اتصال MCP جاهز محفوظ، كما أن ODOO_MCP_URL أو ODOO_MCP_TOKEN غير متاح في بيئة التشغيل الحالية.",
+      };
     }
 
     try {
