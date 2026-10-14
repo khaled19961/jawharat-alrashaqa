@@ -305,6 +305,7 @@ function Chat({ onLogout }: { onLogout: () => void }) {
         <div>
           <strong>{isOdooReady ? "Odoo متصل" : "اتصال Odoo غير مؤكد"}</strong>
           <p>{isOdooReady ? "أدوات Odoo المتاحة: " + mcpState.tools.length : "راجع عنوان MCP ومفتاحه وصلاحيات الأدوات في إعدادات الخادم."}</p>
+          <p>أزرار القراءة المباشرة تستدعي أدوات MCP من الخادم بمعاملات ثابتة وتعرض النتيجة المعادة دون تمريرها عبر النموذج اللغوي</p>
           {connectionMessage && <p className="connection-message">{connectionMessage}</p>}
         </div>
         <div className="connection-actions">
