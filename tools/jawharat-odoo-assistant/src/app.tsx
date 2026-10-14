@@ -153,6 +153,8 @@ function Chat({ onLogout }: { onLogout: () => void }) {
   });
   const [input, setInput] = useState("");
   const [connectionMessage, setConnectionMessage] = useState("");
+  const [contextAuditResult, setContextAuditResult] = useState<unknown>(null);
+  const [contextAuditBusy, setContextAuditBusy] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [copyErrorMessageId, setCopyErrorMessageId] = useState<string | null>(null);
   const agent = useAgent<JawharatOdooAgent>({
@@ -198,6 +200,23 @@ function Chat({ onLogout }: { onLogout: () => void }) {
     } catch {
       setCopyErrorMessageId(message.id);
       setCopiedMessageId(null);
+    }
+  }
+
+  async function runInitialContextReadOnlyCheck() {
+    setContextAuditBusy(true);
+    setContextAuditResult(null);
+    try {
+      const result = await agent.stub.runInitialContextReadOnlyCheck();
+      setContextAuditResult(result);
+    } catch (error) {
+      setContextAuditResult({
+        ok: false,
+        stage: "client-call",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setContextAuditBusy(false);
     }
   }
 
@@ -249,8 +268,30 @@ function Chat({ onLogout }: { onLogout: () => void }) {
           <p>{isOdooReady ? "أدوات Odoo المتاحة: " + mcpState.tools.length : "راجع عنوان MCP ومفتاحه وصلاحيات الأدوات في إعدادات الخادم."}</p>
           {connectionMessage && <p className="connection-message">{connectionMessage}</p>}
         </div>
-        <button className="secondary-button" type="button" onClick={reconnect}>فحص الاتصال</button>
+        <div className="connection-actions">
+          <button className="secondary-button" type="button" onClick={reconnect}>فحص الاتصال</button>
+          <button className="primary-button" type="button" onClick={() => void runInitialContextReadOnlyCheck()} disabled={contextAuditBusy}>
+            {contextAuditBusy ? "جارٍ تنفيذ قراءة MCP..." : "اختبار قراءة MCP الفعلية"}
+          </button>
+        </div>
       </section>
+      {contextAuditResult !== null && (
+        <section className="tool-card mcp-audit-result">
+          <div className="message-heading">
+            <strong>نتيجة الاستدعاء المباشر من خادم MCP</strong>
+            <button
+              type="button"
+              className="copy-message-button"
+              onClick={() => {
+                void navigator.clipboard?.writeText(JSON.stringify(contextAuditResult, null, 2));
+              }}
+            >
+              نسخ النتيجة
+            </button>
+          </div>
+          <pre>{JSON.stringify(contextAuditResult, null, 2)}</pre>
+        </section>
+      )}
 
       <section className="safety-banner">
         <strong>نطاق آمن</strong>
