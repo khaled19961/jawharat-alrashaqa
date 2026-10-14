@@ -250,6 +250,7 @@ function Chat({ onLogout }: { onLogout: () => void }) {
                     <button
                       type="button"
                       className="copy-message-button"
+                      title="نسخ نص رد المساعد"
                       onClick={() => void copyAssistantMessage(message)}
                       aria-label="نسخ رسالة المساعد"
                     >
