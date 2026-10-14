@@ -149,6 +149,75 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
     }
   }
 
+
+  @callable()
+  async runInitialContextReadOnlyCheck() {
+    await this.mcp.waitForConnections({ timeout: 10_000 });
+
+    const state = this.getMcpServers();
+    const server = state.servers["odoo"];
+    if (!server || server.state !== "ready") {
+      return {
+        ok: false,
+        stage: "connection",
+        serverState: server?.state ?? "missing",
+        error: server?.error ?? "خادم Odoo MCP ليس في حالة ready",
+      };
+    }
+
+    const rawTools = this.mcp.listTools({ serverId: "odoo" });
+    const rawTool = rawTools.find((item) =>
+      /mcp_retrieve_initial_context/i.test(item.name)
+    );
+    if (!rawTool) {
+      return {
+        ok: false,
+        stage: "discovery",
+        error: "الأداة المطلوبة غير موجودة في قائمة الأدوات الفعلية",
+        availableTools: rawTools.map((item) => item.name),
+      };
+    }
+
+    const toolSet = this.mcp.getAITools({ serverId: "odoo" });
+    const entry = Object.entries(toolSet).find(([name, definition]) =>
+      /mcp_retrieve_initial_context/i.test(name) &&
+      typeof (definition as { execute?: unknown }).execute === "function"
+    );
+
+    if (!entry) {
+      return {
+        ok: false,
+        stage: "execution-preparation",
+        rawToolName: rawTool.name,
+        error: "الأداة اكتُشفت في MCP لكن لم تتوفر لها دالة تنفيذ متوافقة مع AI SDK",
+        availableAIToolNames: Object.keys(toolSet),
+      };
+    }
+
+    try {
+      const [aiToolName, definition] = entry;
+      const execute = (definition as { execute: (input: unknown, options: unknown) => Promise<unknown> }).execute;
+      const result = await execute({}, {
+        toolCallId: "jra-context-" + crypto.randomUUID(),
+        messages: [],
+      });
+      return {
+        ok: true,
+        source: "live MCP tool execution",
+        rawToolName: rawTool.name,
+        aiToolName,
+        result,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        stage: "tool-execution",
+        rawToolName: rawTool.name,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
   async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
     const allTools = this.mcp.getAITools();
     const websiteScopedTools: Record<string, any> = {};
