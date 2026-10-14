@@ -8,6 +8,33 @@ import type { JawharatOdooAgent } from "./server";
 type SessionResponse = { authenticated?: boolean; error?: string };
 type LoginResponse = { ok?: boolean; error?: string };
 
+function removeAssistantPunctuation(text: string): string {
+  const protectedParts: string[] = [];
+  const protect = (value: string) => {
+    const marker = "JRAKEEP" + "X".repeat(protectedParts.length + 1) + "TOKEN";
+    protectedParts.push(value);
+    return marker;
+  };
+
+  let cleaned = text
+    .replace(/```[\s\S]*?```|`[^`\n]*`/gu, protect)
+    .replace(/https?:\/\/[^\s<>"'`]+/gu, protect)
+    .replace(/\b[A-Za-z][A-Za-z0-9]*(?:[_./:@+-][A-Za-z0-9]+)+\b/gu, protect)
+    .replace(/\p{N}+(?:[.,٫٬:/-]\p{N}+)*/gu, protect)
+    .replace(/[\p{P}|~<>=]+/gu, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  protectedParts.forEach((value, index) => {
+    const marker = "JRAKEEP" + "X".repeat(index + 1) + "TOKEN";
+    cleaned = cleaned.replace(marker, value);
+  });
+
+  return cleaned;
+}
+
 function Login({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -144,7 +171,7 @@ function Chat({ onLogout }: { onLogout: () => void }) {
 
   async function copyAssistantMessage(message: UIMessage) {
     const textToCopy = message.parts
-      .map((part) => part.type === "text" ? part.text : "")
+      .map((part) => part.type === "text" ? removeAssistantPunctuation(part.text) : "")
       .filter((text) => text.trim().length > 0)
       .join("\n\n");
 
@@ -263,7 +290,7 @@ function Chat({ onLogout }: { onLogout: () => void }) {
                   )}
                 </div>
                 {message.parts.map((part, index) => {
-                  if (part.type === "text") return <div className="message-text" key={message.id + "-" + index}>{part.text}</div>;
+                  if (part.type === "text") return <div className="message-text" key={message.id + "-" + index}>{message.role === "assistant" ? removeAssistantPunctuation(part.text) : part.text}</div>;
                   return <ToolPart key={message.id + "-" + index} part={part} approve={addToolApprovalResponse} />;
                 })}
               </article>
