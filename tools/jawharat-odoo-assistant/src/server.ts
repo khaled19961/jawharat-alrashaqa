@@ -218,6 +218,93 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
     }
   }
 
+
+  @callable()
+  async runReadOnlyAudit(auditKey: string) {
+    const jobs: Record<string, { pattern: RegExp; input: Record<string, unknown> }> = {
+      models: { pattern: /get_models/i, input: {} },
+      company_fields: { pattern: /get_fields/i, input: { model_name: "res.company" } },
+      currency_fields: { pattern: /get_fields/i, input: { model_name: "res.currency" } },
+      country_fields: { pattern: /get_fields/i, input: { model_name: "res.country" } },
+      account_fields: { pattern: /get_fields/i, input: { model_name: "account.account" } },
+      journal_fields: { pattern: /get_fields/i, input: { model_name: "account.journal" } },
+      tax_fields: { pattern: /get_fields/i, input: { model_name: "account.tax" } },
+      warehouse_fields: { pattern: /get_fields/i, input: { model_name: "stock.warehouse" } },
+      module_fields: { pattern: /get_fields/i, input: { model_name: "ir.module.module" } },
+    };
+
+    const job = jobs[auditKey];
+    if (!job) {
+      return { ok: false, stage: "validation", error: "اختبار قراءة غير مسموح به", auditKey };
+    }
+
+    await this.mcp.waitForConnections({ timeout: 10_000 });
+    const state = this.getMcpServers();
+    const server = state.servers["odoo"];
+    if (!server || server.state !== "ready") {
+      return {
+        ok: false,
+        stage: "connection",
+        serverState: server?.state ?? "missing",
+        error: server?.error ?? "خادم Odoo MCP ليس في حالة ready",
+      };
+    }
+
+    const rawTools = this.mcp.listTools({ serverId: "odoo" });
+    const rawTool = rawTools.find((item) => job.pattern.test(item.name));
+    if (!rawTool) {
+      return {
+        ok: false,
+        stage: "discovery",
+        auditKey,
+        error: "الأداة المطلوبة غير موجودة في قائمة الأدوات الفعلية",
+        availableTools: rawTools.map((item) => item.name),
+      };
+    }
+
+    const toolSet = this.mcp.getAITools({ serverId: "odoo" });
+    const entry = Object.entries(toolSet).find(([name, definition]) =>
+      job.pattern.test(name) &&
+      typeof (definition as { execute?: unknown }).execute === "function"
+    );
+    if (!entry) {
+      return {
+        ok: false,
+        stage: "execution-preparation",
+        auditKey,
+        rawToolName: rawTool.name,
+        error: "الأداة اكتُشفت في MCP لكن لم تتوفر لها دالة تنفيذ متوافقة مع AI SDK",
+      };
+    }
+
+    try {
+      const [aiToolName, definition] = entry;
+      const execute = (definition as any).execute as (input: unknown, options: unknown) => Promise<unknown>;
+      const result = await execute(job.input, {
+        toolCallId: "jra-audit-" + auditKey + "-" + crypto.randomUUID(),
+        messages: [],
+      });
+      return {
+        ok: true,
+        source: "live MCP tool execution",
+        auditKey,
+        rawToolName: rawTool.name,
+        aiToolName,
+        input: job.input,
+        result,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        stage: "tool-execution",
+        auditKey,
+        rawToolName: rawTool.name,
+        input: job.input,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
   async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
     const allTools = this.mcp.getAITools();
     const websiteScopedTools: Record<string, any> = {};
