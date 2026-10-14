@@ -18,7 +18,14 @@ const READ_ONLY_AUDIT_OPTIONS = [
   { key: "journal_fields", label: "حقول الدفاتر" },
   { key: "tax_fields", label: "حقول الضرائب" },
   { key: "warehouse_fields", label: "حقول المستودعات" },
-  { key: "module_fields", label: "حقول التطبيقات" }
+  { key: "module_fields", label: "حقول التطبيقات" },
+  { key: "company_record", label: "قراءة سجل الشركة مباشرة" },
+  { key: "installed_modules", label: "قراءة التطبيقات المثبتة مباشرة" },
+  { key: "account_samples", label: "عينة دليل الحسابات المباشرة" },
+  { key: "journal_samples", label: "قراءة دفاتر اليومية مباشرة" },
+  { key: "tax_samples", label: "قراءة الضرائب مباشرة" },
+  { key: "warehouse_samples", label: "قراءة المستودعات مباشرة" },
+  { key: "product_samples", label: "عينة المنتجات المباشرة" }
 ] as const;
 
 function removeAssistantPunctuation(text: string): string {
