@@ -289,11 +289,15 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
         toolCallId: "jra-context-" + crypto.randomUUID(),
         messages: [],
       });
+      const toolReportedError = Boolean(
+        result && typeof result === "object" && (result as { isError?: unknown }).isError === true
+      );
       return {
-        ok: true,
+        ok: !toolReportedError,
         source: "live MCP tool execution",
         rawToolName: rawTool.name,
         aiToolName,
+        ...(toolReportedError ? { stage: "tool-result", error: "أداة MCP أعادت isError=true" } : {}),
         result,
       };
     } catch (error) {
@@ -435,13 +439,17 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
         toolCallId: "jra-audit-" + auditKey + "-" + crypto.randomUUID(),
         messages: [],
       });
+      const toolReportedError = Boolean(
+        result && typeof result === "object" && (result as { isError?: unknown }).isError === true
+      );
       return {
-        ok: true,
+        ok: !toolReportedError,
         source: "live MCP tool execution",
         auditKey,
         rawToolName: rawTool.name,
         aiToolName,
         input: job.input,
+        ...(toolReportedError ? { stage: "tool-result", error: "أداة MCP أعادت isError=true" } : {}),
         result,
       };
     } catch (error) {
