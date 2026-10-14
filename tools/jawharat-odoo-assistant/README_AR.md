@@ -84,3 +84,8 @@
 - [Cloudflare Agents MCP client](https://developers.cloudflare.com/agents/tools/mcp/)
 - [Cloudflare Workers AI free allowance and pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/)
 - [GLM-4.7-Flash model details](https://developers.cloudflare.com/workers-ai/models/glm-4.7-flash/)
+
+## آخر تحديث للواجهة — 14 أكتوبر 2026
+
+- أُضيف زر «نسخ الرسالة» إلى ردود المساعد النصية مع تأكيد عند نجاح النسخ.
+- يلزم أن يكتمل البناء والنشر على Cloudflare حتى يظهر التحديث على الرابط المنشور؛ وجود التغيير في GitHub وحده لا يثبت اكتمال النشر.
