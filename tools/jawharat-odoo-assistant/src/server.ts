@@ -196,7 +196,7 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
 
     try {
       const [aiToolName, definition] = entry;
-      const execute = (definition as { execute: (input: unknown, options: unknown) => Promise<unknown> }).execute;
+      const execute = (definition as any).execute as (input: any, options: any) => Promise<unknown>;
       const result = await execute({}, {
         toolCallId: "jra-context-" + crypto.randomUUID(),
         messages: [],
