@@ -8,6 +8,19 @@ import type { JawharatOdooAgent } from "./server";
 type SessionResponse = { authenticated?: boolean; error?: string };
 type LoginResponse = { ok?: boolean; error?: string };
 
+
+const READ_ONLY_AUDIT_OPTIONS = [
+  { key: "models", label: "قائمة النماذج" },
+  { key: "company_fields", label: "حقول الشركة" },
+  { key: "currency_fields", label: "حقول العملة" },
+  { key: "country_fields", label: "حقول البلد" },
+  { key: "account_fields", label: "حقول الحسابات" },
+  { key: "journal_fields", label: "حقول الدفاتر" },
+  { key: "tax_fields", label: "حقول الضرائب" },
+  { key: "warehouse_fields", label: "حقول المستودعات" },
+  { key: "module_fields", label: "حقول التطبيقات" }
+] as const;
+
 function removeAssistantPunctuation(text: string): string {
   const protectedParts: string[] = [];
   const protect = (value: string) => {
@@ -220,6 +233,25 @@ function Chat({ onLogout }: { onLogout: () => void }) {
     }
   }
 
+
+  async function runReadOnlyAudit(auditKey: string) {
+    setContextAuditBusy(true);
+    setContextAuditResult(null);
+    try {
+      const result = await agent.stub.runReadOnlyAudit(auditKey);
+      setContextAuditResult(result);
+    } catch (error) {
+      setContextAuditResult({
+        ok: false,
+        stage: "client-call",
+        auditKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setContextAuditBusy(false);
+    }
+  }
+
   async function reconnect() {
     setConnectionMessage("جارٍ فحص الاتصال...");
     try {
@@ -271,8 +303,19 @@ function Chat({ onLogout }: { onLogout: () => void }) {
         <div className="connection-actions">
           <button className="secondary-button" type="button" onClick={reconnect}>فحص الاتصال</button>
           <button className="primary-button" type="button" onClick={() => void runInitialContextReadOnlyCheck()} disabled={contextAuditBusy}>
-            {contextAuditBusy ? "جارٍ تنفيذ قراءة MCP..." : "اختبار قراءة MCP الفعلية"}
+            {contextAuditBusy ? "جارٍ تنفيذ قراءة MCP..." : "اختبار قراءة السياق"}
           </button>
+          {READ_ONLY_AUDIT_OPTIONS.map((option) => (
+            <button
+              key={option.key}
+              className="secondary-button"
+              type="button"
+              onClick={() => void runReadOnlyAudit(option.key)}
+              disabled={contextAuditBusy}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
       </section>
       {contextAuditResult !== null && (
