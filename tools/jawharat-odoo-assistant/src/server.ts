@@ -53,10 +53,12 @@ const SYSTEM_PROMPT = [
   "- اقترح التطبيقات الإضافية فقط عندما تشرح فائدة عملية مرتبطة باحتياج المستخدم وتبيّن هل تأكدت من عدم وجودها أم لا. ميّز بين التطبيق المثبت والتطبيق المتاح للتثبيت والتوصية فقط.",
   "- لا توصي بإزالة تطبيق لمجرد أن استخدامه غير واضح؛ تحقق من الاعتماديات والأثر أولًا. اترك التثبيت والإزالة للمستخدم بعد موافقته الصريحة.",
   "",
-  "المرحلة 3 — إعداد النظام:",
-  "- أنشئ خطة تهيئة خطوة بخطوة بالترتيب الصحيح مع متطلبات كل إعداد واعتمادياته وطريقة اختباره والتراجع عنه.",
-  "- أدوات MCP المتاحة قد تكون للقراءة فقط. إذا لم توجد أداة كتابة أو تثبيت معتمدة، فلا تدّع القدرة على التنفيذ؛ اكتب تعليمات يطبقها المستخدم بنفسه في واجهة Odoo.",
-  "- لا تغيّر أو تنشئ أو تحذف أو تثبّت أو تزيل أي شيء بنفسك. لا تنفذ كتابة أو إجراء تشغيلي؛ اعرض التوصية وانتظر موافقة المستخدم على الخطة التالية فقط، واشرح أن التثبيت اليدوي سيتم في Odoo.",
+  "المرحلة 3 — التنفيذ المنضبط:",
+  "- افحص الأدوات الفعلية المتاحة أولًا وحدد هل توجد أدوات قراءة وإنشاء وتحديث. لا تدّع وجود قدرة غير موجودة.",
+  "- القراءة والفحص مسموحان ضمن الحقول الآمنة المحددة في الكود.",
+  "- يمكن إنشاء أو تحديث صفحات الموقع وقوائمه فقط إذا توفرت أداة فعلية مناسبة وظهر طلب موافقة صريح من المستخدم في واجهة المحادثة. اشرح السجل والحقول والقيم والأثر قبل التنفيذ.",
+  "- يمنع الحذف. وتظل المحاسبة والضرائب والزكاة والفواتير والقيود والمخزون والطلبات والأسعار وطرق الدفع والمستخدمون والصلاحيات خارج نطاق التعديل.",
+  "- إذا لم توجد أداة مناسبة أو لم تتوفر الموافقة، اعرض خطة فقط ولا تدّع التنفيذ.",
   "",
   "المرحلة 4 — الموقع بعد اكتمال التهيئة:",
   "- لا تبدأ تخصيص الموقع حتى يراجع المستخدم تقرير الإعدادات ويؤكد أن تهيئة النظام الأساسية انتهت.",
@@ -66,8 +68,10 @@ const SYSTEM_PROMPT = [
   "- حافظ على وظائف متجر Odoo الأصلية وروابط المنتجات والأسعار والسلة والدفع. لا تستبدل الكتل الديناميكية بمحتوى ثابت تجريبي.",
   "",
   "قواعد الأمان:",
-  "- لا تعدّل البيانات المالية أو الضرائب أو الزكاة أو الفواتير أو القيود أو المخزون أو الطلبات أو الأسعار أو صلاحيات المستخدمين.",
-  "- لا تشغّل أداة عامة على نموذج قبل التأكد من اسم النموذج والحقول ومعرّف السجل والأثر. الأدوات العامة للقراءة لا تعدّ أدوات تعديل.",
+  "- لا تعدّل البيانات المالية أو الضرائب أو الزكاة أو الفواتير أو القيود أو المخزون أو الطلبات أو الأسعار أو طرق الدفع أو صلاحيات المستخدمين.",
+  "- لا تسمح بإنشاء أو تحديث إلا لنماذج الموقع المدرجة في قائمة السماح داخل الكود، وبعد موافقة المستخدم من واجهة الموافقات.",
+  "- لا تحذف أي سجل. لا تعتبر موافقة عامة سابقة موافقة على عملية جديدة.",
+  "- قبل التعديل تحقق من اسم النموذج والحقول ومعرّف السجل والقيم والأثر. بعد التنفيذ اقرأ السجل مجددًا للتحقق إن توفرت أداة قراءة مناسبة.",
   "- لا تعرض الأسرار أو مفاتيح API أو كلمات المرور. لا تطلب من المستخدم إرسالها في المحادثة.",
   "- لا تدّعِ أن إعدادًا تغيّر أو تطبيقًا ثُبّت أو موقعًا نُشر إلا إذا كانت هناك أداة مناسبة ونتيجة مؤكدة؛ وفي هذا المشروع يطبق المستخدم التغييرات يدويًا.",
   "",
@@ -494,10 +498,35 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
         continue;
       }
 
-      // Any non-read tool call must request approval in the chat UI.
-      websiteScopedTools[name] = readOnlyByName
-        ? definition
-        : { ...definition, needsApproval: true };
+      // Write access is limited server-side to website presentation models and always requires UI approval.
+      const isMutationTool = /create|update|write|delete|unlink|publish|archive|confirm|validate|post|execute|remove|move/i.test(name);
+      if (isMutationTool) {
+        if (/delete|unlink|remove|archive/i.test(name)) {
+          websiteScopedTools[name] = {
+            ...definition,
+            execute: async () => ({ ok: false, blocked: true, source: "server write policy", error: "الحذف غير مسموح به في هذه الأداة." })
+          };
+          continue;
+        }
+        const originalDefinition = definition as any;
+        websiteScopedTools[name] = {
+          ...originalDefinition,
+          needsApproval: true,
+          execute: async (input: unknown, toolOptions: unknown) => {
+            const value = input && typeof input === "object" ? input as Record<string, unknown> : {};
+            const model = typeof value.model_name === "string" ? value.model_name : typeof value.model === "string" ? value.model : "";
+            const allowedModels = new Set(["website.page", "website.menu", "ir.ui.view"]);
+            if (!allowedModels.has(model)) {
+              return { ok: false, blocked: true, source: "server write policy", error: "تم منع التعديل من الخادم. المسموح فقط صفحات الموقع وقوائمه وعروض الواجهة: website.page و website.menu و ir.ui.view." };
+            }
+            return originalDefinition.execute(input, toolOptions);
+          }
+        };
+        continue;
+      }
+
+      // Read tools remain available only where they pass the existing policy above.
+      websiteScopedTools[name] = readOnlyByName ? definition : { ...definition, needsApproval: true };
     }
 
     const lastUserText = extractLatestUserText(this.messages);
