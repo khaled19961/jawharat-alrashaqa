@@ -220,21 +220,17 @@ function createServer(env: Env) {
     inputSchema: z.object({
       model: z.string(),
       method: z.string(),
-      args: z.array(z.unknown()).optional(),
-      kwargs: z.record(z.string(), z.unknown()).optional(),
+      parameters: z.record(z.string(), z.unknown()).optional().describe("معاملات method المسماة كما تتطلبها واجهة Odoo JSON-2"),
       confirm_execution: z.literal(true).describe("تأكيد أن method قد تنفذ إجراء أعمال أو تغييرات")
     })
-  }, async ({ model, method, args, kwargs, confirm_execution }) => {
+  }, async ({ model, method, parameters, confirm_execution }) => {
     if (confirm_execution !== true) throw new Error("يلزم تأكيد استدعاء method.");
     requireWriteAccess(env, "method call");
     if (env.ODOO_ENABLE_ARBITRARY_METHODS !== "true") {
       throw new Error("استدعاء methods العامة معطل. فعّل ODOO_ENABLE_ARBITRARY_METHODS=true فقط بعد مراجعة المخاطر.");
     }
     validateMethod(method);
-    const result = await odooCall<unknown>(env, model, method, {
-      ...(kwargs ?? {}),
-      ...(args && args.length ? { args } : {})
-    });
+    const result = await odooCall<unknown>(env, model, method, parameters ?? {});
     return textResult({ model, method, result });
   });
 
