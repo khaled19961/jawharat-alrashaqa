@@ -16,7 +16,7 @@ A separate Cloudflare Worker exposing a small authenticated, read-only MCP serve
 
 From this directory, run `npm install`, then `npx wrangler secret put ODOO_URL` and enter `https://jawharat-alrashaqa.odoo.com`. Run `npx wrangler secret put ODOO_API_KEY` and paste the API key into the secure prompt. Run `npx wrangler secret put MCP_ACCESS_TOKEN` and set a separate long random token for MCP clients. Never commit either key or send it in chat.
 
-Run `npm run typecheck`, then `npm run dev` for local verification. After verification, run `npm run deploy`. Copy the exact Worker URL Wrangler prints; do not guess it.
+Run `npm run typecheck`, then `npm run dev` for local verification. After verification, run `npm run deploy`. The MCP endpoint path is `/mcp`; use the exact URL Wrangler prints with `/mcp` appended, and do not guess the hostname.
 
 Set the existing assistant Worker's `ODOO_MCP_URL` to that deployed URL and `ODOO_MCP_TOKEN` to the same value as `MCP_ACCESS_TOKEN`. Then verify an actual MCP tool call before claiming the connection works.
 
