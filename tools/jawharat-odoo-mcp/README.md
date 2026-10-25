@@ -1,25 +1,47 @@
-# Jawharat Al Rashaqa — Odoo JSON-2 MCP
+# Jawharat Al Rashaqa — Odoo 20 MCP Assistant
 
-A separate Cloudflare Worker exposing a small authenticated, read-only MCP server for Odoo 20 through the documented External JSON-2 API. This does not assume that Odoo Online provides a built-in `/mcp` endpoint.
+خادم MCP مستقل على Cloudflare Worker لربط مساعد خاص بمثيل Odoo 20 الخاص بجوهرة الرشاقة عبر واجهة Odoo External JSON-2 API.
 
-## Safety scope
+## مبادئ المساعد
 
-- Bearer token required for MCP clients (`MCP_ACCESS_TOKEN`).
-- Odoo API key stored only as a Cloudflare secret (`ODOO_API_KEY`).
-- Odoo URL stored as a Cloudflare secret (`ODOO_URL`).
-- Strict allowlist of models and fields in `src/index.ts`.
-- Read-only tools only: list allowed models, get field metadata, search/read, read by IDs.
-- No create, update, delete, posting, stock movement, or payment tools are implemented.
-- Not yet deployed or tested against the live database by this commit.
+- الصراحة والدليل قبل الموافقة أو التخمين؛ لا يدّعي تنفيذًا أو نجاحًا دون نتيجة يمكن التحقق منها.
+- يوضح ما هو مؤكد، وما هو استنتاج، وما لم يُختبر أو تعذّر التحقق منه.
+- لا يغيّر البيانات لمجرد امتلاكه صلاحية تقنية؛ الإجراءات المؤثرة تحتاج تفويضًا صريحًا مناسبًا للعملية.
+- يتبع صلاحيات مستخدم Odoo وقواعد السجلات، ويعيد قراءة البيانات بعد الكتابة متى أمكن.
+- مواصفات السلوك وتجربة الاستخدام: [ASSISTANT_BEHAVIOR.md](./ASSISTANT_BEHAVIOR.md).
 
-## Deploy
+## الأدوات المتاحة في الكود
 
-From this directory, run `npm install`, then `npx wrangler secret put ODOO_URL` and enter `https://jawharat-alrashaqa.odoo.com`. Run `npx wrangler secret put ODOO_API_KEY` and paste the API key into the secure prompt. Run `npx wrangler secret put MCP_ACCESS_TOKEN` and set a separate long random token for MCP clients. Never commit either key or send it in chat.
+- `odoo_list_models`: اكتشاف النماذج.
+- `odoo_get_fields`: قراءة تعريفات الحقول.
+- `odoo_search_read` و`odoo_read_records`: البحث والقراءة.
+- `odoo_create_records` و`odoo_update_records`: إنشاء وتعديل، بشرط تفعيل `ODOO_ENABLE_WRITES=true` وتمرير تأكيد العملية.
+- `odoo_delete_records`: حذف نهائي مشروط بتفعيل الكتابة وتأكيد صريح يتضمن النموذج والمعرّفات.
+- `odoo_call_method`: استدعاء method في Odoo، مشروط بتفعيل الكتابة وتفعيل `ODOO_ENABLE_ARBITRARY_METHODS=true` وتأكيد صريح.
 
-Run `npm run typecheck`, then `npm run dev` for local verification. After verification, run `npm run deploy`. The MCP endpoint path is `/mcp`; use the exact URL Wrangler prints with `/mcp` appended, and do not guess the hostname.
+تفعيل أدوات الكتابة أو استدعاء methods العامة يزيد المخاطر. لا تفعّلها إلا بعد مراجعة الصلاحيات، واختبارها في بيئة مناسبة، والتأكد من وجود نسخة احتياطية قابلة للاستعادة. قيود التأكيد داخل MCP ليست بديلًا عن صلاحيات Odoo أو ضوابط الموافقة البشرية.
 
-Set the existing assistant Worker's `ODOO_MCP_URL` to that deployed URL and `ODOO_MCP_TOKEN` to the same value as `MCP_ACCESS_TOKEN`. Then verify an actual MCP tool call before claiming the connection works.
+## الإعدادات والأسرار
 
-Odoo requests use `POST {ODOO_URL}/json/2/{model}/{method}` with `Authorization: bearer {ODOO_API_KEY}` and a JSON body. Odoo access is still governed by the API user's permissions. Use a dedicated minimally privileged Odoo user for this integration.
+يحتاج الخادم إلى:
+- `ODOO_URL`: عنوان قاعدة Odoo، مثل `https://jawharat-alrashaqa.odoo.com`.
+- `ODOO_API_KEY`: مفتاح API لمستخدم Odoo مخصص ومحدود الصلاحيات قدر الإمكان.
+- `MCP_ACCESS_TOKEN`: رمز منفصل لتوثيق عملاء MCP.
+- `ODOO_ENABLE_WRITES`: اختياري؛ القيمة `true` تتيح أدوات الإنشاء والتعديل والحذف واستدعاء methods.
+- `ODOO_ENABLE_ARBITRARY_METHODS`: اختياري؛ القيمة `true` تتيح أداة استدعاء methods العامة، وهي أعلى خطورة.
 
-Writes require a separate reviewed implementation with explicit approval, model-specific validation, and read-back verification. Changing environment variables does not enable writes in this code.
+لا تضع مفاتيح API أو الرموز في المستودع أو المحادثة. احفظها في Cloudflare Secrets. لا تمنح حساب Odoo صلاحيات المدير لمجرد تسهيل الربط؛ امنحه فقط ما يحتاجه العمل.
+
+## الفحص والتشغيل
+
+من هذا المجلد:
+1. `npm install`
+2. `npm run typecheck`
+3. `npm run dev` للاختبار المحلي.
+4. بعد نجاح الفحص والمراجعة فقط: `npm run deploy`.
+
+بعد النشر، استخدم عنوان Worker الفعلي الذي تعرضه Cloudflare وأضف المسار `/mcp` عند الحاجة وفق إعداد الخادم. اربط العميل بعنوان MCP والرمز نفسه، ثم نفّذ استدعاء قراءة حقيقيًا للتحقق من الاتصال.
+
+## حالة التنفيذ — بصدق
+
+وجود الكود في GitHub لا يعني أنه نُشر أو اتصل بقاعدة Odoo. لم يتم إثبات نجاح البناء أو النشر أو الاتصال الحي في هذه المرحلة. لا تعتبر أي وظيفة ناجحة حتى يتم تشغيل اختبار فعلي وتسجيل نتيجته.
