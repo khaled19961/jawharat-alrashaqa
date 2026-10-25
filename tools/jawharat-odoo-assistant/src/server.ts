@@ -89,6 +89,15 @@ const SYSTEM_PROMPT = [
   "- استخدم المسافات والأسطر الجديدة بدل علامات الترقيم، واكتب الإجابة مباشرة من دون زخرفة.",
 ].join("\n");
 
+function containsImageAttachment(messages: unknown): boolean {
+  if (!Array.isArray(messages)) return false;
+  return messages.some((message: any) =>
+    message?.role === "user" &&
+    Array.isArray(message.parts) &&
+    message.parts.some((part: any) => part?.type === "file" && typeof part.mediaType === "string" && part.mediaType.startsWith("image/"))
+  );
+}
+
 function extractLatestUserText(messages: unknown): string {
   if (!Array.isArray(messages)) return "";
   for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -534,7 +543,7 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
 
     const workersai = createWorkersAI({ binding: this.env.AI });
     const result = streamText({
-      model: workersai("@cf/zai-org/glm-4.7-flash", {
+      model: workersai(containsImageAttachment(this.messages) ? "@cf/meta/llama-4-scout-17b-16e-instruct" : "@cf/zai-org/glm-4.7-flash", {
         sessionAffinity: this.sessionAffinity
       }),
       system: SYSTEM_PROMPT,
