@@ -148,7 +148,7 @@ function createServer(env: Env) {
   });
 
   server.registerTool("odoo_create_records", {
-    description: "إنشاء سجل أو أكثر في أي نموذج يملك مستخدم Odoo صلاحية الإنشاء عليه. يتطلب ODOO_ENABLE_WRITES=true.",
+    description: "تنبيه للمساعد: لا تستدعِ أداة الإنشاء قبل أن تعرض للمستخدم النموذج والقيم والأثر المتوقع وتحصل على موافقته الصريحة في المحادثة على هذه العملية بعينها. إنشاء سجل أو أكثر في أي نموذج يملك مستخدم Odoo صلاحية الإنشاء عليه. يتطلب ODOO_ENABLE_WRITES=true. confirm_write داخل الأداة حاجز تقني إضافي وليس دليلًا مستقلًا على موافقة المستخدم.",
     inputSchema: z.object({
       model: z.string(),
       values: z.union([z.record(z.string(), z.unknown()), z.array(z.record(z.string(), z.unknown())).min(1).max(50)]),
@@ -171,7 +171,7 @@ function createServer(env: Env) {
   });
 
   server.registerTool("odoo_update_records", {
-    description: "تعديل سجلات في أي نموذج يملك مستخدم Odoo صلاحية التعديل عليه. يتطلب ODOO_ENABLE_WRITES=true وإقرارًا صريحًا.",
+    description: "تنبيه للمساعد: لا تستدعِ أداة التعديل قبل عرض النموذج ومعرّفات السجلات والقيم الحالية والجديدة والأثر المتوقع والحصول على موافقة المستخدم الصريحة لهذه العملية بعينها. تعديل سجلات يملك مستخدم Odoo صلاحية تعديلها. يتطلب ODOO_ENABLE_WRITES=true. confirm_write حاجز إضافي وليس دليلًا مستقلًا على موافقة المستخدم.",
     inputSchema: z.object({
       model: z.string(),
       ids: z.array(z.number().int().positive()).min(1).max(MAX_RECORDS),
@@ -196,7 +196,7 @@ function createServer(env: Env) {
   });
 
   server.registerTool("odoo_delete_records", {
-    description: "حذف سجلات Odoo نهائيًا. عملية عالية الخطورة: تتطلب تفعيل الكتابة، confirm_delete=true، وكتابة العبارة DELETE <model> <ids> في confirm_phrase. قد يرفض Odoo الحذف إذا كانت السجلات مرتبطة.",
+    description: "تنبيه للمساعد: لا تستدعِ أداة الحذف قبل عرض النموذج ومعرّفات السجلات واسمها/ملخصها والأثر غير القابل للعكس والحصول على موافقة صريحة خاصة بالحذف من المستخدم. حذف سجلات Odoo نهائيًا. يتطلب تفعيل الكتابة وتأكيدًا إضافيًا مطابقًا للنموذج والمعرّفات. هذا التأكيد التقني وحده لا يثبت موافقة المستخدم.",
     inputSchema: z.object({
       model: z.string(),
       ids: z.array(z.number().int().positive()).min(1).max(20),
@@ -216,7 +216,7 @@ function createServer(env: Env) {
   });
 
   server.registerTool("odoo_call_method", {
-    description: "استدعاء method مخصص في نموذج Odoo للمستخدم الحالي. قد تنفذ methods إجراءات أعمال مؤثرة. يتطلب ODOO_ENABLE_WRITES=true وODOO_ENABLE_ARBITRARY_METHODS=true، مع confirm_execution=true.",
+    description: "تنبيه للمساعد: قبل استدعاء أي method غير قراءة، اشرح للمستخدم اسم النموذج واسم method والمعاملات والأثر المحتمل، وانتظر موافقته الصريحة على هذا الاستدعاء بعينه. قد تنفذ methods إجراءات أعمال مؤثرة. يتطلب ODOO_ENABLE_WRITES=true وODOO_ENABLE_ARBITRARY_METHODS=true. confirm_execution حاجز إضافي وليس دليلًا مستقلًا على موافقة المستخدم.",
     inputSchema: z.object({
       model: z.string(),
       method: z.string(),
