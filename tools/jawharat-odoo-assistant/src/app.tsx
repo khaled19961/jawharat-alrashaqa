@@ -190,6 +190,10 @@ function Chat({ onLogout }: { onLogout: () => void }) {
   const servers = useMemo(() => Object.values(mcpState.servers), [mcpState]);
   const odooServer = servers.find((server) => /odoo/i.test(server.name + " " + server.server_url));
   const isOdooReady = odooServer?.state === "ready";
+  const toolNames = mcpState.tools.map((tool) => tool.name);
+  const readToolCount = toolNames.filter((name) => /search|read|list|retrieve|get.?models|get.?fields|describe|lookup/i.test(name) && !/create|update|write|delete|unlink/i.test(name)).length;
+  const createToolCount = toolNames.filter((name) => /create/i.test(name) && !/delete/i.test(name)).length;
+  const updateToolCount = toolNames.filter((name) => /update|write/i.test(name) && !/delete/i.test(name)).length;
 
   async function copyAssistantMessage(message: UIMessage) {
     const textToCopy = message.parts
@@ -343,6 +347,19 @@ function Chat({ onLogout }: { onLogout: () => void }) {
           <pre>{JSON.stringify(contextAuditResult, null, 2)}</pre>
         </section>
       )}
+
+      <section className="connection-panel capability-panel">
+        <div>
+          <strong>قدرات الأدوات المتاحة فعليًا</strong>
+          <p>الأرقام مستخرجة من قائمة أدوات MCP المتصلة وليست تقديرًا من النموذج</p>
+        </div>
+        <div className="capability-list">
+          <span className="capability-chip">قراءة وفحص <b>{readToolCount}</b></span>
+          <span className="capability-chip">إنشاء <b>{createToolCount}</b></span>
+          <span className="capability-chip">تحديث <b>{updateToolCount}</b></span>
+          <span className="capability-chip">إجمالي الأدوات <b>{mcpState.tools.length}</b></span>
+        </div>
+      </section>
 
       <section className="safety-banner">
         <strong>نطاق آمن</strong>
