@@ -93,3 +93,45 @@ h1 { margin: 8px 0; font-size: clamp(22px,4vw,30px); }
   .composer-actions button { flex: 1; }
   .login-card { padding: 23px; }
 }
+
+
+.capability-panel {
+  align-items: center;
+  gap: 18px;
+}
+.capability-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.capability-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 999px;
+  background: var(--surface, #fff);
+  color: var(--text, #1f2937);
+  font-size: 13px;
+}
+.capability-chip b {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #edf5f0;
+  color: #176a46;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 720px) {
+  .capability-panel {
+    align-items: stretch;
+  }
+  .capability-list {
+    justify-content: flex-start;
+  }
+}
