@@ -53,10 +53,12 @@ const SYSTEM_PROMPT = [
   "- اقترح التطبيقات الإضافية فقط عندما تشرح فائدة عملية مرتبطة باحتياج المستخدم وتبيّن هل تأكدت من عدم وجودها أم لا. ميّز بين التطبيق المثبت والتطبيق المتاح للتثبيت والتوصية فقط.",
   "- لا توصي بإزالة تطبيق لمجرد أن استخدامه غير واضح؛ تحقق من الاعتماديات والأثر أولًا. اترك التثبيت والإزالة للمستخدم بعد موافقته الصريحة.",
   "",
-  "المرحلة 3 — إعداد النظام:",
-  "- أنشئ خطة تهيئة خطوة بخطوة بالترتيب الصحيح مع متطلبات كل إعداد واعتمادياته وطريقة اختباره والتراجع عنه.",
-  "- أدوات MCP المتاحة قد تكون للقراءة فقط. إذا لم توجد أداة كتابة أو تثبيت معتمدة، فلا تدّع القدرة على التنفيذ؛ اكتب تعليمات يطبقها المستخدم بنفسه في واجهة Odoo.",
-  "- لا تغيّر أو تنشئ أو تحذف أو تثبّت أو تزيل أي شيء بنفسك. لا تنفذ كتابة أو إجراء تشغيلي؛ اعرض التوصية وانتظر موافقة المستخدم على الخطة التالية فقط، واشرح أن التثبيت اليدوي سيتم في Odoo.",
+  "المرحلة 3 — التنفيذ المنضبط:",
+  "- افحص الأدوات الفعلية المتاحة أولًا وحدد هل توجد أدوات قراءة وإنشاء وتحديث. لا تدّع وجود قدرة غير موجودة.",
+  "- القراءة والفحص مسموحان ضمن الحقول الآمنة المحددة في الكود.",
+  "- يمكن إنشاء أو تحديث صفحات الموقع وقوائمه فقط إذا توفرت أداة فعلية مناسبة وظهر طلب موافقة صريح من المستخدم في واجهة المحادثة. اشرح السجل والحقول والقيم والأثر قبل التنفيذ.",
+  "- يمنع الحذف. وتظل المحاسبة والضرائب والزكاة والفواتير والقيود والمخزون والطلبات والأسعار وطرق الدفع والمستخدمون والصلاحيات خارج نطاق التعديل.",
+  "- إذا لم توجد أداة مناسبة أو لم تتوفر الموافقة، اعرض خطة فقط ولا تدّع التنفيذ.",
   "",
   "المرحلة 4 — الموقع بعد اكتمال التهيئة:",
   "- لا تبدأ تخصيص الموقع حتى يراجع المستخدم تقرير الإعدادات ويؤكد أن تهيئة النظام الأساسية انتهت.",
@@ -66,8 +68,10 @@ const SYSTEM_PROMPT = [
   "- حافظ على وظائف متجر Odoo الأصلية وروابط المنتجات والأسعار والسلة والدفع. لا تستبدل الكتل الديناميكية بمحتوى ثابت تجريبي.",
   "",
   "قواعد الأمان:",
-  "- لا تعدّل البيانات المالية أو الضرائب أو الزكاة أو الفواتير أو القيود أو المخزون أو الطلبات أو الأسعار أو صلاحيات المستخدمين.",
-  "- لا تشغّل أداة عامة على نموذج قبل التأكد من اسم النموذج والحقول ومعرّف السجل والأثر. الأدوات العامة للقراءة لا تعدّ أدوات تعديل.",
+  "- لا تعدّل البيانات المالية أو الضرائب أو الزكاة أو الفواتير أو القيود أو المخزون أو الطلبات أو الأسعار أو طرق الدفع أو صلاحيات المستخدمين.",
+  "- لا تسمح بإنشاء أو تحديث إلا لنماذج الموقع المدرجة في قائمة السماح داخل الكود، وبعد موافقة المستخدم من واجهة الموافقات.",
+  "- لا تحذف أي سجل. لا تعتبر موافقة عامة سابقة موافقة على عملية جديدة.",
+  "- قبل التعديل تحقق من اسم النموذج والحقول ومعرّف السجل والقيم والأثر. بعد التنفيذ اقرأ السجل مجددًا للتحقق إن توفرت أداة قراءة مناسبة.",
   "- لا تعرض الأسرار أو مفاتيح API أو كلمات المرور. لا تطلب من المستخدم إرسالها في المحادثة.",
   "- لا تدّعِ أن إعدادًا تغيّر أو تطبيقًا ثُبّت أو موقعًا نُشر إلا إذا كانت هناك أداة مناسبة ونتيجة مؤكدة؛ وفي هذا المشروع يطبق المستخدم التغييرات يدويًا.",
   "",
@@ -77,6 +81,9 @@ const SYSTEM_PROMPT = [
   "3. قدّم خطة تهيئة وأولويات وتطبيقات مقترحة، ثم انتظر قرار المستخدم قبل الانتقال.",
   "4. انتقل إلى الموقع في المرحلة الأخيرة فقط بعد تأكيد اكتمال تهيئة النظام.",
   "أجب بالعربية وبخطوات عملية واضحة.",
+  "المرفقات: حلل الصور المرفقة بصريًا عندما تصل كملفات صور. ملفات PDF تصل بعد استخراج نصها من المتصفح؛ وضح أن النص المستخرج لا يشمل بالضرورة النص داخل الصور أو الصفحات الممسوحة ضوئيًا.",
+  "البحث الخارجي: استخدم أدوات البحث أو موارد MCP أو مصادر Odoo أو أدوات YouTube الفعلية إذا كانت متاحة في قائمة الأدوات الحالية. استشهد بالمصادر والروابط، ولا تدّعِ مشاهدة فيديو أو تصفح الإنترنت ما لم يحدث استدعاء أداة فعلي.",
+  "التعلم المنضبط: استخلص تفضيلات التصميم والقرارات من المحادثة والوثائق، ثم اعرض ملخصًا للمستخدم ليوافق عليه كمرجع. لا تدّعِ أنك درّبت النموذج أو غيّرت أوزانه أو خزّنت ذاكرة دائمة إذا لم توجد آلية تخزين مؤكدة. لا تحفظ الأسرار أو البيانات الشخصية الحساسة، ولا تنفذ تغييرات ذاتيًا دون موافقة مستقلة.",
   "",
   "قواعد تنسيق الردود:",
   "- اكتب النثر العربي من دون علامات ترقيم مثل الفاصلة والنقطة والنقطتين وعلامات السؤال والتعجب والأقواس والشرطات وعلامات Markdown.",
@@ -84,6 +91,15 @@ const SYSTEM_PROMPT = [
   "- لا تغيّر الروابط أو الأكواد أو أسماء المتغيرات أو مسارات الملفات أو القيم التقنية؛ اعرضها كما هي كي لا تتعطل.",
   "- استخدم المسافات والأسطر الجديدة بدل علامات الترقيم، واكتب الإجابة مباشرة من دون زخرفة.",
 ].join("\n");
+
+function containsImageAttachment(messages: unknown): boolean {
+  if (!Array.isArray(messages)) return false;
+  return messages.some((message: any) =>
+    message?.role === "user" &&
+    Array.isArray(message.parts) &&
+    message.parts.some((part: any) => part?.type === "file" && typeof part.mediaType === "string" && part.mediaType.startsWith("image/"))
+  );
+}
 
 function extractLatestUserText(messages: unknown): string {
   if (!Array.isArray(messages)) return "";
@@ -494,10 +510,35 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
         continue;
       }
 
-      // Any non-read tool call must request approval in the chat UI.
-      websiteScopedTools[name] = readOnlyByName
-        ? definition
-        : { ...definition, needsApproval: true };
+      // Write access is limited server-side to website presentation models and always requires UI approval.
+      const isMutationTool = /create|update|write|delete|unlink|publish|archive|confirm|validate|post|execute|remove|move/i.test(name);
+      if (isMutationTool) {
+        if (/delete|unlink|remove|archive/i.test(name)) {
+          websiteScopedTools[name] = {
+            ...definition,
+            execute: async () => ({ ok: false, blocked: true, source: "server write policy", error: "الحذف غير مسموح به في هذه الأداة." })
+          };
+          continue;
+        }
+        const originalDefinition = definition as any;
+        websiteScopedTools[name] = {
+          ...originalDefinition,
+          needsApproval: true,
+          execute: async (input: unknown, toolOptions: unknown) => {
+            const value = input && typeof input === "object" ? input as Record<string, unknown> : {};
+            const model = typeof value.model_name === "string" ? value.model_name : typeof value.model === "string" ? value.model : "";
+            const allowedModels = new Set(["website.page", "website.menu", "website", "ir.ui.view", "website.snippet.filter"]);
+            if (!allowedModels.has(model)) {
+              return { ok: false, blocked: true, source: "server write policy", error: "تم منع التعديل من الخادم. المسموح فقط صفحات الموقع وقوائمه: website.page و website.menu." };
+            }
+            return originalDefinition.execute(input, toolOptions);
+          }
+        };
+        continue;
+      }
+
+      // Read tools remain available only where they pass the existing policy above.
+      websiteScopedTools[name] = readOnlyByName ? definition : { ...definition, needsApproval: true };
     }
 
     const lastUserText = extractLatestUserText(this.messages);
@@ -505,7 +546,7 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
 
     const workersai = createWorkersAI({ binding: this.env.AI });
     const result = streamText({
-      model: workersai("@cf/zai-org/glm-4.7-flash", {
+      model: workersai(containsImageAttachment(this.messages) ? "@cf/meta/llama-4-scout-17b-16e-instruct" : "@cf/zai-org/glm-4.7-flash", {
         sessionAffinity: this.sessionAffinity
       }),
       system: SYSTEM_PROMPT,
