@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/server": "2.0.0",
+    "@modelcontextprotocol/sdk": "^1.25.2",
     "agents": "^0.20.0",
     "zod": "^4.0.0"
   },
