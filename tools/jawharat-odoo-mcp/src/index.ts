@@ -1,79 +1,65 @@
 import { createMcpHandler } from "agents/mcp/server";
-import { McpServer } from "@modelcontextprotocol/server";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 interface Env {
   ODOO_URL: string;
   ODOO_API_KEY: string;
   MCP_ACCESS_TOKEN: string;
-  ODOO_READ_ONLY?: string;
+  ODOO_ENABLE_WRITES?: string;
+  ODOO_ENABLE_ARBITRARY_METHODS?: string;
 }
 
-type OdooModel = keyof typeof MODEL_FIELDS;
-
-/**
- * Intentionally narrow allowlist for the first release.
- * No arbitrary model/method access and no write/delete tools.
- */
-const MODEL_FIELDS = {
-  "res.company": ["id", "name", "currency_id", "country_id", "partner_id"],
-  "res.currency": ["id", "name", "symbol", "active", "rounding"],
-  "res.country": ["id", "name", "code"],
-  "ir.module.module": ["id", "name", "shortdesc", "state", "latest_version"],
-  "product.product": ["id", "name", "default_code", "barcode", "categ_id", "active", "product_tmpl_id"],
-  "product.template": ["id", "name", "default_code", "barcode", "categ_id", "active", "list_price", "sale_ok", "purchase_ok", "detailed_type", "type"],
-  "product.category": ["id", "name", "parent_id"],
-  "stock.warehouse": ["id", "name", "code", "partner_id", "company_id"],
-  "stock.location": ["id", "name", "complete_name", "usage", "location_id", "company_id"],
-  "website": ["id", "name", "domain", "company_id"],
-  "website.page": ["id", "name", "url", "is_published", "view_id", "website_id"],
-  "website.menu": ["id", "name", "url", "parent_id", "sequence", "website_id"]
-} as const;
-
-const MODEL_NAMES = Object.keys(MODEL_FIELDS) as OdooModel[];
-const SAFE_FIELD_NAMES = new Set([
-  "id", "name", "default_code", "barcode", "categ_id", "active",
-  "product_tmpl_id", "list_price", "sale_ok", "purchase_ok", "detailed_type",
-  "type", "currency_id", "country_id", "partner_id", "symbol", "rounding",
-  "code", "shortdesc", "state", "latest_version", "company_id", "location_id",
-  "complete_name", "usage", "domain", "url", "is_published", "view_id",
-  "website_id", "parent_id", "sequence"
-]);
+const MAX_RECORDS = 100;
+const MODEL_NAME = /^[a-zA-Z0-9_.]+$/;
+const METHOD_NAME = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 function textResult(value: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
 }
 
-function assertModel(model: string): asserts model is OdooModel {
-  if (!MODEL_NAMES.includes(model as OdooModel)) {
-    throw new Error(`النموذج غير مسموح في نسخة القراءة الآمنة: ${model}. النماذج المسموحة: ${MODEL_NAMES.join(", ")}`);
+function validateModel(model: string): void {
+  if (!MODEL_NAME.test(model) || model.startsWith(".") || model.endsWith(".") || model.includes("..")) {
+    throw new Error("اسم نموذج Odoo غير صالح.");
   }
 }
 
-function allowedFields(model: OdooModel, requested?: string[]) {
-  const allowed = MODEL_FIELDS[model] as readonly string[];
-  if (!requested || requested.length === 0) return [...allowed];
-  const invalid = requested.filter((field) => !allowed.includes(field) || !SAFE_FIELD_NAMES.has(field));
-  if (invalid.length) throw new Error(`حقول غير مسموح بها للنموذج ${model}: ${invalid.join(", ")}`);
-  return [...new Set(requested)];
+function validateMethod(method: string): void {
+  if (!METHOD_NAME.test(method) || method.startsWith("__")) {
+    throw new Error("اسم method غير صالح أو محظور.");
+  }
 }
 
-async function odooCall<T>(env: Env, model: OdooModel, method: "fields_get" | "search_read" | "read", params: Record<string, unknown>): Promise<T> {
-  if (!env.ODOO_URL || !env.ODOO_API_KEY) throw new Error("إعداد ODOO_URL أو ODOO_API_KEY غير موجود في Cloudflare Secrets.");
+function requireWriteAccess(env: Env, action: string): void {
+  if (env.ODOO_ENABLE_WRITES !== "true") {
+    throw new Error(`عملية ${action} معطلة حاليًا. فعّل ODOO_ENABLE_WRITES=true في Cloudflare Secrets بعد مراجعة الصلاحيات والنسخ الاحتياطي.`);
+  }
+}
+
+async function odooCall<T>(
+  env: Env,
+  model: string,
+  method: string,
+  params: Record<string, unknown>
+): Promise<T> {
+  validateModel(model);
+  validateMethod(method);
+  if (!env.ODOO_URL || !env.ODOO_API_KEY) {
+    throw new Error("إعداد ODOO_URL أو ODOO_API_KEY غير موجود في Cloudflare Secrets.");
+  }
   const baseUrl = env.ODOO_URL.replace(/\/+$/, "");
-  const response = await fetch(`${baseUrl}/json/2/${encodeURIComponent(model)}/${method}`, {
+  const response = await fetch(`${baseUrl}/json/2/${encodeURIComponent(model)}/${encodeURIComponent(method)}`, {
     method: "POST",
     headers: {
-      "Authorization": `bearer ${env.ODOO_API_KEY}`,
+      Authorization: `bearer ${env.ODOO_API_KEY}`,
       "Content-Type": "application/json",
-      "Accept": "application/json"
+      Accept: "application/json"
     },
     body: JSON.stringify(params)
   });
   const body = await response.text();
   if (!response.ok) {
-    // Do not leak request headers or credentials. Preserve Odoo's useful error body.
-    throw new Error(`Odoo JSON-2 رجع HTTP ${response.status}: ${body.slice(0, 1500)}`);
+    throw new Error(`Odoo JSON-2 رجع HTTP ${response.status}: ${body.slice(0, 2000)}`);
   }
   try {
     return JSON.parse(body) as T;
@@ -84,92 +70,173 @@ async function odooCall<T>(env: Env, model: OdooModel, method: "fields_get" | "s
 
 function createServer(env: Env) {
   const server = new McpServer({
-    name: "Jawharat Al Rashaqa — Odoo JSON-2",
-    version: "0.1.0"
+    name: "Jawharat Al Rashaqa — Full Odoo JSON-2",
+    version: "0.2.0"
   });
 
-  server.registerTool(
-    "odoo_list_allowed_models",
-    {
-      description: "يعرض النماذج المسموح بقراءتها في إصدار MCP الآمن الحالي. لا يجري أي تغيير في Odoo.",
-      inputSchema: z.object({})
-    },
-    async () => textResult({ mode: "read-only", models: MODEL_NAMES })
-  );
-
-  server.registerTool(
-    "odoo_get_fields",
-    {
-      description: "يجلب وصف الحقول الآمنة لنموذج مسموح به في Odoo 20 عبر JSON-2.",
-      inputSchema: z.object({
-        model: z.string().describe("اسم النموذج مثل product.template"),
-        fields: z.array(z.string()).optional().describe("أسماء الحقول المطلوبة؛ يجب أن تكون ضمن القائمة الآمنة")
-      })
-    },
-    async ({ model, fields }) => {
-      assertModel(model);
-      const requested = allowedFields(model, fields);
-      const metadata = await odooCall<Record<string, unknown>>(env, model, "fields_get", {
-        attributes: ["string", "type", "required", "readonly", "relation"]
-      });
-      const filtered = Object.fromEntries(Object.entries(metadata).filter(([key]) => requested.includes(key)));
-      return textResult({ model, fields: filtered });
+  server.registerTool("odoo_list_models", {
+    description: "اكتشاف نماذج Odoo المتاحة للمستخدم الحالي. تظهر فقط النماذج التي يمكن استرجاعها من ir.model، وتظل صلاحيات السجلات محكومة بحساب Odoo.",
+    inputSchema: z.object({
+      search: z.string().max(100).optional().describe("اختياري: فلترة اسم النموذج أو وصفه"),
+      limit: z.number().int().min(1).max(500).optional()
+    })
+  }, async ({ search, limit }) => {
+    const domain: unknown[] = [];
+    if (search?.trim()) {
+      domain.push("|", ["model", "ilike", search.trim()], ["name", "ilike", search.trim()]);
     }
-  );
+    const models = await odooCall<unknown[]>(env, "ir.model", "search_read", {
+      domain,
+      fields: ["id", "model", "name", "state", "transient"],
+      limit: limit ?? 200,
+      order: "model"
+    });
+    return textResult({ count: models.length, models });
+  });
 
-  server.registerTool(
-    "odoo_search_read",
-    {
-      description: "يبحث عن سجلات Odoo ويقرأ حقولًا محددة فقط من النماذج المسموحة. الحد الأقصى 100 سجل، ولا ينفذ أي كتابة.",
-      inputSchema: z.object({
-        model: z.string().describe("اسم النموذج المسموح"),
-        domain: z.array(z.array(z.unknown())).optional().describe("قائمة شروط Odoo domain؛ استخدم شروطًا بسيطة فقط"),
-        fields: z.array(z.string()).optional().describe("حقول من القائمة الآمنة للنموذج"),
-        limit: z.number().int().min(1).max(100).optional().describe("عدد السجلات، بحد أقصى 100"),
-        offset: z.number().int().min(0).max(10000).optional(),
-        order: z.string().max(100).optional().describe("ترتيب باستخدام حقول آمنة فقط")
-      })
-    },
-    async ({ model, domain, fields, limit, offset, order }) => {
-      assertModel(model);
-      const selectedFields = allowedFields(model, fields);
-      if (order) {
-        const orderFields = order.split(",").map((part) => part.trim().split(/\s+/)[0]);
-        if (orderFields.some((field) => !selectedFields.includes(field))) {
-          throw new Error("حقل الترتيب يجب أن يكون ضمن الحقول المطلوبة المسموحة.");
-        }
-      }
-      const records = await odooCall<unknown[]>(env, model, "search_read", {
-        domain: domain ?? [],
-        fields: selectedFields,
-        limit: limit ?? 20,
-        offset: offset ?? 0,
-        ...(order ? { order } : {})
-      });
-      return textResult({ model, count: records.length, records });
-    }
-  );
+  server.registerTool("odoo_get_fields", {
+    description: "يعرض تعريفات حقول أي نموذج Odoo متاح: النوع، الاسم، العلاقة، القراءة فقط، والمتطلبات.",
+    inputSchema: z.object({
+      model: z.string(),
+      attributes: z.array(z.enum(["string", "type", "required", "readonly", "relation", "help", "selection", "store"])).optional()
+    })
+  }, async ({ model, attributes }) => {
+    const fields = await odooCall<Record<string, unknown>>(env, model, "fields_get", {
+      attributes: attributes ?? ["string", "type", "required", "readonly", "relation", "help"]
+    });
+    return textResult({ model, count: Object.keys(fields).length, fields });
+  });
 
-  server.registerTool(
-    "odoo_read_records",
-    {
-      description: "يقرأ سجلات محددة بالمعرّفات من نموذج مسموح وحقول آمنة فقط.",
-      inputSchema: z.object({
-        model: z.string(),
-        ids: z.array(z.number().int().positive()).min(1).max(100),
-        fields: z.array(z.string()).optional()
-      })
-    },
-    async ({ model, ids, fields }) => {
-      assertModel(model);
-      const selectedFields = allowedFields(model, fields);
-      const records = await odooCall<unknown[]>(env, model, "read", {
-        ids: [...new Set(ids)],
-        fields: selectedFields
-      });
-      return textResult({ model, count: records.length, records });
+  server.registerTool("odoo_search_read", {
+    description: "بحث وقراءة سجلات من أي نموذج Odoo، مع domain وحقول وترتيب وحد أقصى 100 سجل لكل استدعاء.",
+    inputSchema: z.object({
+      model: z.string(),
+      domain: z.array(z.unknown()).optional(),
+      fields: z.array(z.string()).min(1).max(200).optional(),
+      limit: z.number().int().min(1).max(MAX_RECORDS).optional(),
+      offset: z.number().int().min(0).max(100000).optional(),
+      order: z.string().max(200).optional(),
+      context: z.record(z.string(), z.unknown()).optional()
+    })
+  }, async ({ model, domain, fields, limit, offset, order, context }) => {
+    const records = await odooCall<unknown[]>(env, model, "search_read", {
+      domain: domain ?? [],
+      fields: fields ?? ["display_name"],
+      limit: limit ?? 20,
+      offset: offset ?? 0,
+      ...(order ? { order } : {}),
+      ...(context ? { context } : {})
+    });
+    return textResult({ model, count: records.length, records });
+  });
+
+  server.registerTool("odoo_read_records", {
+    description: "قراءة سجلات محددة بمعرّفاتها من أي نموذج Odoo.",
+    inputSchema: z.object({
+      model: z.string(),
+      ids: z.array(z.number().int().positive()).min(1).max(MAX_RECORDS),
+      fields: z.array(z.string()).min(1).max(200).optional(),
+      context: z.record(z.string(), z.unknown()).optional()
+    })
+  }, async ({ model, ids, fields, context }) => {
+    const records = await odooCall<unknown[]>(env, model, "read", {
+      ids: [...new Set(ids)],
+      fields: fields ?? ["display_name"],
+      ...(context ? { context } : {})
+    });
+    return textResult({ model, count: records.length, records });
+  });
+
+  server.registerTool("odoo_create_records", {
+    description: "إنشاء سجل أو أكثر في أي نموذج يملك مستخدم Odoo صلاحية الإنشاء عليه. يتطلب ODOO_ENABLE_WRITES=true.",
+    inputSchema: z.object({
+      model: z.string(),
+      values: z.union([z.record(z.string(), z.unknown()), z.array(z.record(z.string(), z.unknown())).min(1).max(50)]),
+      context: z.record(z.string(), z.unknown()).optional(),
+      confirm_write: z.literal(true).describe("يجب تمرير true للتأكيد الصريح على تنفيذ الكتابة")
+    })
+  }, async ({ model, values, context, confirm_write }) => {
+    if (confirm_write !== true) throw new Error("يلزم تأكيد الكتابة.");
+    requireWriteAccess(env, "create");
+    const vals = Array.isArray(values) ? values : [values];
+    const ids = await odooCall<number[]>(env, model, "create", {
+      vals_list: vals,
+      ...(context ? { context } : {})
+    });
+    const records = await odooCall<unknown[]>(env, model, "read", {
+      ids,
+      fields: ["display_name"]
+    });
+    return textResult({ operation: "create", model, ids, verification: records });
+  });
+
+  server.registerTool("odoo_update_records", {
+    description: "تعديل سجلات في أي نموذج يملك مستخدم Odoo صلاحية التعديل عليه. يتطلب ODOO_ENABLE_WRITES=true وإقرارًا صريحًا.",
+    inputSchema: z.object({
+      model: z.string(),
+      ids: z.array(z.number().int().positive()).min(1).max(MAX_RECORDS),
+      values: z.record(z.string(), z.unknown()),
+      context: z.record(z.string(), z.unknown()).optional(),
+      confirm_write: z.literal(true).describe("يجب تمرير true للتأكيد الصريح على تنفيذ الكتابة")
+    })
+  }, async ({ model, ids, values, context, confirm_write }) => {
+    if (confirm_write !== true) throw new Error("يلزم تأكيد الكتابة.");
+    requireWriteAccess(env, "write");
+    const uniqueIds = [...new Set(ids)];
+    const result = await odooCall<boolean>(env, model, "write", {
+      ids: uniqueIds,
+      vals: values,
+      ...(context ? { context } : {})
+    });
+    const verification = await odooCall<unknown[]>(env, model, "read", {
+      ids: uniqueIds,
+      fields: ["display_name"]
+    });
+    return textResult({ operation: "write", model, ids: uniqueIds, result, verification });
+  });
+
+  server.registerTool("odoo_delete_records", {
+    description: "حذف سجلات Odoo نهائيًا. عملية عالية الخطورة: تتطلب تفعيل الكتابة، confirm_delete=true، وكتابة العبارة DELETE <model> <ids> في confirm_phrase. قد يرفض Odoo الحذف إذا كانت السجلات مرتبطة.",
+    inputSchema: z.object({
+      model: z.string(),
+      ids: z.array(z.number().int().positive()).min(1).max(20),
+      confirm_delete: z.literal(true),
+      confirm_phrase: z.string().min(1).max(500)
+    })
+  }, async ({ model, ids, confirm_delete, confirm_phrase }) => {
+    if (confirm_delete !== true) throw new Error("الحذف غير مؤكد.");
+    requireWriteAccess(env, "unlink");
+    const uniqueIds = [...new Set(ids)];
+    const expected = `DELETE ${model} ${uniqueIds.join(",")}`;
+    if (confirm_phrase !== expected) {
+      throw new Error(`تأكيد الحذف غير مطابق. لتأكيد هذه العملية تحديدًا يجب أن تكون العبارة: ${expected}`);
     }
-  );
+    const result = await odooCall<boolean>(env, model, "unlink", { ids: uniqueIds });
+    return textResult({ operation: "unlink", model, ids: uniqueIds, result, note: "تم استدعاء unlink؛ تحقّق من النتيجة قبل اعتبار الحذف مؤكدًا." });
+  });
+
+  server.registerTool("odoo_call_method", {
+    description: "استدعاء method مخصص في نموذج Odoo للمستخدم الحالي. قد تنفذ methods إجراءات أعمال مؤثرة. يتطلب ODOO_ENABLE_WRITES=true وODOO_ENABLE_ARBITRARY_METHODS=true، مع confirm_execution=true.",
+    inputSchema: z.object({
+      model: z.string(),
+      method: z.string(),
+      args: z.array(z.unknown()).optional(),
+      kwargs: z.record(z.string(), z.unknown()).optional(),
+      confirm_execution: z.literal(true).describe("تأكيد أن method قد تنفذ إجراء أعمال أو تغييرات")
+    })
+  }, async ({ model, method, args, kwargs, confirm_execution }) => {
+    if (confirm_execution !== true) throw new Error("يلزم تأكيد استدعاء method.");
+    requireWriteAccess(env, "method call");
+    if (env.ODOO_ENABLE_ARBITRARY_METHODS !== "true") {
+      throw new Error("استدعاء methods العامة معطل. فعّل ODOO_ENABLE_ARBITRARY_METHODS=true فقط بعد مراجعة المخاطر.");
+    }
+    validateMethod(method);
+    const result = await odooCall<unknown>(env, model, method, {
+      ...(kwargs ?? {}),
+      ...(args && args.length ? { args } : {})
+    });
+    return textResult({ model, method, result });
+  });
 
   return server;
 }
@@ -177,7 +244,14 @@ function createServer(env: Env) {
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type, Mcp-Session-Id", "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS" } });
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Headers": "Authorization, Content-Type, Mcp-Session-Id, MCP-Protocol-Version",
+          "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS"
+        }
+      });
     }
 
     const configuredToken = env.MCP_ACCESS_TOKEN;
@@ -186,17 +260,12 @@ export default {
       return new Response("Unauthorized", { status: 401, headers: { "WWW-Authenticate": "Bearer" } });
     }
 
-    if (env.ODOO_READ_ONLY === "false") {
-      // Writes are deliberately not implemented in this release; this flag never enables them.
-      return new Response("This MCP build is read-only; write tools are not implemented.", { status: 403 });
-    }
-
     const handler = createMcpHandler(() => createServer(env));
     const response = await handler(request, env as never, ctx as never);
     const headers = new Headers(response.headers);
     headers.set("Cache-Control", "no-store");
     headers.set("Access-Control-Allow-Origin", "*");
-    headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type, Mcp-Session-Id");
+    headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type, Mcp-Session-Id, MCP-Protocol-Version");
     headers.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   }
