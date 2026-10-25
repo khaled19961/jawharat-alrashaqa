@@ -200,7 +200,7 @@ function Chat({ onLogout }: { onLogout: () => void }) {
 
   async function copyAssistantMessage(message: UIMessage) {
     const textToCopy = message.parts
-      .map((part) => part.type === "text" ? part.text : "")
+      .map((part) => part.type === "text" ? removeAssistantPunctuation(part.text) : "")
       .filter((text) => text.trim().length > 0)
       .join("\n\n");
 
@@ -362,6 +362,7 @@ function Chat({ onLogout }: { onLogout: () => void }) {
             </button>
           ))}
         </div>
+ odoo-port
       </section>
       {contextAuditResult !== null && (
         <section className="tool-card mcp-audit-result">
@@ -392,7 +393,26 @@ function Chat({ onLogout }: { onLogout: () => void }) {
           <span className="capability-chip">تحديث <b>{updateToolCount}</b></span>
           <span className="capability-chip">إجمالي الأدوات <b>{mcpState.tools.length}</b></span>
         </div>
+
+ main
       </section>
+      {contextAuditResult !== null && (
+        <section className="tool-card mcp-audit-result">
+          <div className="message-heading">
+            <strong>نتيجة الاستدعاء المباشر من خادم MCP</strong>
+            <button
+              type="button"
+              className="copy-message-button"
+              onClick={() => {
+                void navigator.clipboard?.writeText(JSON.stringify(contextAuditResult, null, 2));
+              }}
+            >
+              نسخ النتيجة
+            </button>
+          </div>
+          <pre>{JSON.stringify(contextAuditResult, null, 2)}</pre>
+        </section>
+      )}
 
       <section className="safety-banner">
         <strong>نطاق آمن</strong>
