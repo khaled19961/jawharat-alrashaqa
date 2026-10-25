@@ -527,7 +527,7 @@ export class JawharatOdooAgent extends AIChatAgent<Env> {
           execute: async (input: unknown, toolOptions: unknown) => {
             const value = input && typeof input === "object" ? input as Record<string, unknown> : {};
             const model = typeof value.model_name === "string" ? value.model_name : typeof value.model === "string" ? value.model : "";
-            const allowedModels = new Set(["website.page", "website.menu"]);
+            const allowedModels = new Set(["website.page", "website.menu", "website", "ir.ui.view", "website.snippet.filter"]);
             if (!allowedModels.has(model)) {
               return { ok: false, blocked: true, source: "server write policy", error: "تم منع التعديل من الخادم. المسموح فقط صفحات الموقع وقوائمه: website.page و website.menu." };
             }
