@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { useAgent } from "agents/react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { MCPServersState } from "agents";
 import type { JawharatOdooAgent } from "./server";
 
@@ -172,6 +173,8 @@ function Chat({ onLogout }: { onLogout: () => void }) {
     tools: []
   });
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState("");
   const [connectionMessage, setConnectionMessage] = useState("");
   const [contextAuditResult, setContextAuditResult] = useState<unknown>(null);
   const [contextAuditBusy, setContextAuditBusy] = useState(false);
@@ -197,7 +200,7 @@ function Chat({ onLogout }: { onLogout: () => void }) {
 
   async function copyAssistantMessage(message: UIMessage) {
     const textToCopy = message.parts
-      .map((part) => part.type === "text" ? removeAssistantPunctuation(part.text) : "")
+      .map((part) => part.type === "text" ? part.text : "")
       .filter((text) => text.trim().length > 0)
       .join("\n\n");
 
@@ -281,12 +284,42 @@ function Chat({ onLogout }: { onLogout: () => void }) {
     }
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = input.trim();
-    if (!text || busy) return;
-    sendMessage({ role: "user", parts: [{ type: "text", text }] });
-    setInput("");
+    if ((!text && attachments.length === 0) || busy) return;
+    setAttachmentError("");
+    try {
+      const parts: any[] = [{ type: "text", text: text || "حلل الملفات المرفقة واستخرج منها الهوية البصرية والمعلومات المهمة. لا تنفذ أي تغيير في Odoo دون عرض التفاصيل وطلب الموافقة." }];
+      for (const file of attachments) {
+        if (file.type === "application/pdf") {
+          const buffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: buffer, isEvalSupported: false }).promise;
+          const pages: string[] = [];
+          for (let pageNumber = 1; pageNumber <= Math.min(pdf.numPages, 40); pageNumber += 1) {
+            const page = await pdf.getPage(pageNumber);
+            const content = await page.getTextContent();
+            const pageText = content.items.map((item: any) => typeof item.str === "string" ? item.str : "").join(" ");
+            pages.push("صفحة " + pageNumber + ": " + pageText);
+          }
+          parts[0].text += "\n\nمحتوى PDF: " + file.name + "\n" + pages.join("\n").slice(0, 80000);
+          if (pdf.numPages > 40) parts[0].text += "\nتم استخراج أول 40 صفحة فقط.";
+        } else {
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error("تعذرت قراءة الملف " + file.name));
+            reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("صيغة الملف غير مدعومة"));
+            reader.readAsDataURL(file);
+          });
+          parts.push({ type: "file", mediaType: file.type, filename: file.name, url: dataUrl });
+        }
+      }
+      sendMessage({ role: "user", parts });
+      setInput("");
+      setAttachments([]);
+    } catch (error) {
+      setAttachmentError(error instanceof Error ? error.message : "تعذر تجهيز الملفات");
+    }
   }
 
   return (
@@ -407,6 +440,23 @@ function Chat({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
         <form className="composer" onSubmit={submit}>
+          <input
+            id="assistant-attachments"
+            className="attachment-input"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,application/pdf"
+            multiple
+            onChange={(event) => {
+              const chosen = Array.from(event.currentTarget.files ?? []);
+              const valid = chosen.filter((file) => file.size <= 12 * 1024 * 1024 && (file.type === "application/pdf" || ["image/png", "image/jpeg", "image/webp"].includes(file.type)));
+              setAttachments((current) => [...current, ...valid].slice(0, 8));
+              setAttachmentError(chosen.length !== valid.length ? "الملفات المسموحة صور PNG/JPG/WEBP وPDF بحجم أقصى 12MB للملف وبحد أقصى 8 ملفات." : "");
+              event.currentTarget.value = "";
+            }}
+          />
+          <label className="attach-button" htmlFor="assistant-attachments">إرفاق صور أو PDF</label>
+          {attachments.length > 0 && <div className="attachment-list">{attachments.map((file, index) => <span className="attachment-chip" key={file.name + file.size + index}>{file.name}<button type="button" aria-label={"إزالة " + file.name} onClick={() => setAttachments((current) => current.filter((_, i) => i !== index))}>×</button></span>)}</div>}
+          {attachmentError && <p className="error" role="alert">{attachmentError}</p>}
           <textarea
             rows={2}
             value={input}
@@ -425,7 +475,7 @@ function Chat({ onLogout }: { onLogout: () => void }) {
             <div className="composer-actions">
               {messages.length > 0 && <button type="button" className="secondary-button" onClick={() => void clearHistory()}>مسح المحادثة</button>}
               {busy && <button type="button" className="secondary-button" onClick={() => stop()}>إيقاف</button>}
-              <button className="primary-button" type="submit" disabled={busy || !input.trim()}>{busy ? "جارٍ العمل…" : "إرسال"}</button>
+              <button className="primary-button" type="submit" disabled={busy || (!input.trim() && attachments.length === 0)}>{busy ? "جارٍ العمل…" : "إرسال"}</button>
             </div>
           </div>
         </form>
