@@ -24,6 +24,7 @@ const SAFE_SEARCH_FIELDS: Record<string, readonly string[]> = {
   "website.menu": ["id", "name", "url", "parent_id", "sequence", "website_id"]
 };
 
+// Keep prompt entries valid string literals; never leave branch names as bare array items.
 const SYSTEM_PROMPT = [
   "أنت المساعد التقني الخاص بمتجر «جوهرة الرشاقة» داخل Odoo Online.",
   "",
